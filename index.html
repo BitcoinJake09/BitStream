@@ -172,6 +172,43 @@
       margin: 10px 0;
       font-weight: bold;
     }
+    /* Side-by-side layout for video and comments */
+    .video-comments-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      align-items: flex-start;
+    }
+    .video-section, .comments-section {
+      flex: 1;
+      min-width: 300px; /* Ensure sections don't get too narrow */
+    }
+    .comments-section h2 {
+      margin-top: 0;
+    }
+    /* Mobile layout */
+    @media (max-width: 768px) {
+      .video-comments-container {
+        flex-direction: column;
+      }
+      .video-section, .comments-section {
+        width: 100%;
+      }
+    }
+    /* Footer styling for developer info */
+    footer {
+      margin-top: 20px;
+      text-align: center;
+      font-size: 0.9em;
+      color: #666;
+    }
+    footer a {
+      color: #007bff;
+      text-decoration: none;
+    }
+    footer a:hover {
+      text-decoration: underline;
+    }
   </style>
 </head>
 <body>
@@ -201,9 +238,24 @@
 
     <div class="section">
       <button onclick="openSettings()">Settings</button>
+      <button onclick="toggleInstructions()" id="toggleInstructionsBtn">Show Instructions</button>
     </div>
 
     <div class="section">
+      <div id="instructions">
+        <strong>Instructions:</strong>
+        1. Broadcaster: Enter your BitStream Name, then click "Start Stream" to begin broadcasting.<br>
+        2. Broadcaster: Set a Stream Title (optional) to let viewers know what your stream is about.<br>
+        3. Broadcaster: Click "Generate Signaling Data", then copy the JSON data from the popup and share it with Viewer A (e.g., via X DMs).<br>
+        4. Viewer A: Enter your BitStream Name, paste the JSON data below, and click "Connect" to watch the stream.<br>
+        5. Viewer A: Copy the response JSON from the popup and send it back to the broadcaster to complete the connection.<br>
+        6. Viewer A: Click "Share Stream" to generate new signaling data, then share it with Viewer B to relay the stream.<br>
+        7. Viewer B: Repeat steps 4-6 to watch and share the stream with Viewer C, and so on.<br>
+        8. Viewer: Click "Enable 1v1 Chat" to share your video with the upstream peer (optional).<br>
+        9. Double-click the video to toggle fullscreen mode.<br>
+        <strong>Note:</strong> WebRTC requires HTTPS. If testing locally, use Chrome with --allow-file-access-from-files.<br>
+        <strong>Privacy Note:</strong> To protect your IP address from being exposed to peers, we recommend using a VPN while streaming or viewing.
+      </div>
       <input type="text" id="bitStreamName" placeholder="Enter your BitStream Name">
       <div class="button-group">
         <button onclick="startStream()">Start Stream</button>
@@ -224,37 +276,22 @@
       <div id="peersConnected">Peers Connected: 0</div>
     </div>
 
-    <div class="section">
-      <button onclick="toggleInstructions()" id="toggleInstructionsBtn">Show Instructions</button>
-      <div id="instructions">
-        <strong>Instructions:</strong>
-        1. Broadcaster: Enter your BitStream Name, then click "Start Stream" to begin broadcasting.<br>
-        2. Broadcaster: Set a Stream Title (optional) to let viewers know what your stream is about.<br>
-        3. Broadcaster: Click "Generate Signaling Data", then copy the JSON data from the popup and share it with Viewer A (e.g., via X DMs).<br>
-        4. Viewer A: Enter your BitStream Name, paste the JSON data below, and click "Connect" to watch the stream.<br>
-        5. Viewer A: Copy the response JSON from the popup and send it back to the broadcaster to complete the connection.<br>
-        6. Viewer A: Click "Share Stream" to generate new signaling data, then share it with Viewer B to relay the stream.<br>
-        7. Viewer B: Repeat steps 4-6 to watch and share the stream with Viewer C, and so on.<br>
-        8. Viewer: Click "Enable 1v1 Chat" to share your video with the upstream peer (optional).<br>
-        9. Double-click the video to toggle fullscreen mode.<br>
-        <strong>Note:</strong> WebRTC requires HTTPS. If testing locally, use Chrome with --allow-file-access-from-files.
+    <div class="video-comments-container">
+      <div class="video-section">
+        <video id="localVideo" autoplay muted></video>
+        <video id="remoteVideo" autoplay ondblclick="toggleFullscreen()"></video>
+        <div id="volumeControl">
+          <label>Volume: </label>
+          <input type="range" id="volumeSlider" min="0" max="1" step="0.01" value="1" oninput="adjustVolume()">
+        </div>
       </div>
-    </div>
 
-    <div class="section">
-      <video id="localVideo" autoplay muted></video>
-      <video id="remoteVideo" autoplay ondblclick="toggleFullscreen()"></video>
-      <div id="volumeControl">
-        <label>Volume: </label>
-        <input type="range" id="volumeSlider" min="0" max="1" step="0.01" value="1" oninput="adjustVolume()">
+      <div class="comments-section">
+        <h2>Live Comments</h2>
+        <div id="comments"></div>
+        <input type="text" id="commentInput" placeholder="Type a comment...">
+        <button onclick="sendComment()">Send</button>
       </div>
-    </div>
-
-    <div class="section">
-      <h2>Live Comments</h2>
-      <div id="comments"></div>
-      <input type="text" id="commentInput" placeholder="Type a comment...">
-      <button onclick="sendComment()">Send</button>
     </div>
 
     <div class="section">
@@ -267,6 +304,10 @@
       <textarea id="signalingData" placeholder="Paste signaling data here"></textarea>
       <button onclick="connectToPeer()">Connect</button>
     </div>
+
+    <footer>
+      Developed by BitcoinJake09 | <a href="https://github.com/BitcoinJake09/BitStream" target="_blank">GitHub Repository</a>
+    </footer>
   </div>
 
   <script>
@@ -500,11 +541,11 @@
       if (!peer || peer.pc.signalingState === 'closed') return;
       try {
         const offer = await peer.pc.createOffer();
-        await pc.setLocalDescription(offer);
+        await peer.pc.setLocalDescription(offer);
         console.log(`Renegotiation offer created for peerId: ${peerId}`);
         const signalingMsg = JSON.stringify({
           type: 'offer',
-          offer: pc.localDescription,
+          offer: peer.pc.localDescription,
           iceCandidates: peer.iceCandidates,
           streamId,
           peerId
