@@ -179,6 +179,7 @@
   <div id="signalingPopup">
     <h3>Your Signaling Data</h3>
     <textarea id="signalingDataOutput" readonly style="height: 200px;"></textarea>
+    <button onclick="copySignalingData()">Copy</button>
     <button onclick="closeSignalingPopup()">Close</button>
   </div>
 
@@ -362,7 +363,24 @@
       signalingPopup.style.display = 'block';
       signalingOverlay.style.display = 'block';
     }
+    function copySignalingData() {
+      const signalingDataOutput = document.getElementById('signalingDataOutput');
+      const copyButton = document.querySelector('#signalingPopup button[onclick="copySignalingData()"]');
 
+      // Copy the textarea content to the clipboard
+      navigator.clipboard.writeText(signalingDataOutput.value)
+        .then(() => {
+          // Show success feedback
+          copyButton.textContent = 'Copied!';
+          setTimeout(() => {
+            copyButton.textContent = 'Copy'; // Reset after 2 seconds
+          }, 2000);
+        })
+        .catch(err => {
+          console.error('Failed to copy signaling data:', err);
+          alert('Failed to copy. Please copy the text manually.');
+        });
+    }
     function closeSignalingPopup() {
       signalingPopup.style.display = 'none';
       signalingOverlay.style.display = 'none';
