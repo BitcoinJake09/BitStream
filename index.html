@@ -1,0 +1,1120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BitStreams - P2P Livestreaming</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background: #f0f0f0;
+      color: #333;
+    }
+    #container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    video {
+      width: 100%;
+      max-width: 400px;
+      background: black;
+      border-radius: 4px;
+      margin: 10px 0;
+      cursor: pointer;
+    }
+    #localVideo {
+      display: none;
+    }
+    #streamList {
+      margin: 20px 0;
+      padding: 0;
+      list-style: none;
+    }
+    #streamList li {
+      padding: 10px;
+      background: #eee;
+      margin: 5px 0;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    #streamList li:hover {
+      background: #ddd;
+    }
+    #comments {
+      height: 150px;
+      overflow-y: auto;
+      border: 1px solid #ccc;
+      padding: 10px;
+      margin: 10px 0;
+      background: #fafafa;
+      border-radius: 4px;
+    }
+    textarea, input[type="text"], select, input[type="color"], input[type="range"] {
+      width: 100%;
+      padding: 8px;
+      margin: 5px 0;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+    button {
+      padding: 8px 16px;
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      margin: 5px;
+    }
+    button:hover {
+      background: var(--hover-color, #0056b3);
+    }
+    #instructions {
+      margin: 10px 0;
+      padding: 10px;
+      background: #e9ecef;
+      border-radius: 4px;
+      display: none;
+    }
+    #toggleInstructionsBtn {
+      margin: 10px 0;
+      background: #6c757d;
+    }
+    #toggleInstructionsBtn:hover {
+      background: #5a6268;
+    }
+    #streamIdDisplay {
+      margin: 10px 0;
+      font-weight: bold;
+    }
+    #signalingPopup {
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.3);
+      z-index: 1000;
+      width: 80%;
+      max-width: 600px;
+    }
+    #signalingOverlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      z-index: 999;
+    }
+    #settingsPopup {
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.3);
+      z-index: 1000;
+    }
+    #settingsOverlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      z-index: 999;
+    }
+    #volumeControl {
+      display: none;
+      max-width: 400px;
+    }
+    .button-group {
+      margin: 10px 0;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .section {
+      margin-bottom: 20px;
+    }
+    #streamTitleSection {
+      display: none;
+      margin: 10px 0;
+    }
+    #streamTitleDisplay {
+      margin: 10px 0;
+      font-size: 1.2em;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <div id="settingsOverlay"></div>
+  <div id="settingsPopup">
+    <h2>Settings</h2>
+    <label>Background Color: <input type="text" id="bgColorInput" placeholder="#f0f0f0"></label>
+    <label>Button Color: <input type="text" id="btnColorInput" placeholder="#007bff"></label>
+    <label>Text Color: <input type="text" id="textColorInput" placeholder="#333"></label>
+    <button onclick="applyColors()">Apply</button>
+    <button onclick="resetColors()">Reset</button>
+    <button onclick="closeSettings()">Close</button>
+  </div>
+
+  <div id="signalingOverlay"></div>
+  <div id="signalingPopup">
+    <h3>Your Signaling Data</h3>
+    <textarea id="signalingDataOutput" readonly style="height: 200px;"></textarea>
+    <button onclick="closeSignalingPopup()">Close</button>
+  </div>
+
+  <div id="container">
+    <h1>BitStreams - P2P Livestreaming</h1>
+
+    <div class="section">
+      <button onclick="openSettings()">Settings</button>
+    </div>
+
+    <div class="section">
+      <input type="text" id="bitStreamName" placeholder="Enter your BitStream Name">
+      <select id="cameraSelect"></select>
+      <div class="button-group">
+        <button onclick="startStream()">Start Stream</button>
+        <button onclick="stopStream()">Stop Stream</button>
+        <button onclick="generateSignalingData()">Generate Signaling Data</button>
+        <button onclick="shareStream()" id="shareStreamBtn" style="display: none;">Share Stream</button>
+        <button onclick="toggleCamera()" id="cameraToggle">Enable 1v1 Chat</button>
+      </div>
+    </div>
+
+    <div class="section" id="streamTitleSection">
+      <input type="text" id="streamTitle" placeholder="Enter your stream title">
+      <button onclick="updateStreamTitle()">Update Stream Title</button>
+    </div>
+
+    <div class="section">
+      <div id="streamIdDisplay"></div>
+      <div id="streamTitleDisplay"></div>
+    </div>
+
+    <div class="section">
+      <button onclick="toggleInstructions()" id="toggleInstructionsBtn">Show Instructions</button>
+      <div id="instructions">
+        <strong>Instructions:</strong>
+        1. Broadcaster: Enter your BitStream Name, then click "Start Stream" to begin broadcasting.<br>
+        2. Broadcaster: Set a Stream Title (optional) to let viewers know what your stream is about.<br>
+        3. Broadcaster: Click "Generate Signaling Data", then copy the JSON data from the popup and share it with Viewer A (e.g., via X DMs).<br>
+        4. Viewer A: Enter your BitStream Name, paste the JSON data below, and click "Connect to Peer" to watch the stream.<br>
+        5. Viewer A: Copy the response JSON from the popup and send it back to the broadcaster to complete the connection.<br>
+        6. Viewer A: Click "Share Stream" to generate new signaling data, then share it with Viewer B to relay the stream.<br>
+        7. Viewer B: Repeat steps 4-6 to watch and share the stream with Viewer C, and so on.<br>
+        8. Viewer: Click "Enable 1v1 Chat" to share your video with the upstream peer (optional).<br>
+        9. Double-click the video to toggle fullscreen mode.<br>
+        <strong>Note:</strong> WebRTC requires HTTPS. If testing locally, use Chrome with --allow-file-access-from-files.
+      </div>
+    </div>
+
+    <div class="section">
+      <video id="localVideo" autoplay muted></video>
+      <video id="remoteVideo" autoplay ondblclick="toggleFullscreen()"></video>
+      <div id="volumeControl">
+        <label>Volume: </label>
+        <input type="range" id="volumeSlider" min="0" max="1" step="0.01" value="1" oninput="adjustVolume()">
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Join a Stream</h2>
+      <textarea id="signalingData" placeholder="Paste signaling data here (not the stream ID)"></textarea>
+      <button onclick="connectToPeer()">Connect to Peer</button>
+    </div>
+
+    <div class="section">
+      <h2>Active Streams</h2>
+      <ul id="streamList"></ul>
+    </div>
+
+    <div class="section">
+      <h2>Live Comments</h2>
+      <div id="comments"></div>
+      <input type="text" id="commentInput" placeholder="Type a comment...">
+      <button onclick="sendComment()">Send</button>
+    </div>
+  </div>
+
+  <script>
+    const localVideo = document.getElementById('localVideo');
+    const remoteVideo = document.getElementById('remoteVideo');
+    const volumeControl = document.getElementById('volumeControl');
+    const volumeSlider = document.getElementById('volumeSlider');
+    const streamList = document.getElementById('streamList');
+    const comments = document.getElementById('comments');
+    const commentInput = document.getElementById('commentInput');
+    const signalingData = document.getElementById('signalingData');
+    const signalingDataOutput = document.getElementById('signalingDataOutput');
+    const cameraSelect = document.getElementById('cameraSelect');
+    const cameraToggle = document.getElementById('cameraToggle');
+    const shareStreamBtn = document.getElementById('shareStreamBtn');
+    const streamIdDisplay = document.getElementById('streamIdDisplay');
+    const settingsPopup = document.getElementById('settingsPopup');
+    const settingsOverlay = document.getElementById('settingsOverlay');
+    const signalingPopup = document.getElementById('signalingPopup');
+    const signalingOverlay = document.getElementById('signalingOverlay');
+    const bgColorInput = document.getElementById('bgColorInput');
+    const btnColorInput = document.getElementById('btnColorInput');
+    const textColorInput = document.getElementById('textColorInput');
+    const instructions = document.getElementById('instructions');
+    const toggleInstructionsBtn = document.getElementById('toggleInstructionsBtn');
+    const bitStreamNameInput = document.getElementById('bitStreamName');
+    const streamTitleSection = document.getElementById('streamTitleSection');
+    const streamTitleInput = document.getElementById('streamTitle');
+    const streamTitleDisplay = document.getElementById('streamTitleDisplay');
+    let localStream = null;
+    let receivedStream = null;
+    let streamId = Math.random().toString(36).substring(2, 10);
+    let bitStreamName = '';
+    let streamTitle = '';
+    let selectedCamera = null;
+    let isBroadcaster = false;
+    let upstreamPeerId = null;
+    const peers = new Map();
+    const knownStreams = new Map();
+    const commentQueue = new Map();
+
+    const iceServers = [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' },
+      { urls: 'stun:stun2.l.google.com:19302' }
+    ];
+
+    const defaultColors = {
+      background: '#f0f0f0',
+      button: '#007bff',
+      buttonHover: '#0056b3',
+      text: '#333'
+    };
+
+    // Periodic queue processor to handle delayed data channel opens
+    setInterval(() => {
+      peers.forEach((peer, peerId) => {
+        if (commentQueue.has(peerId) && peer.pc.connectionState === 'connected' && peer.dc && peer.dc.readyState === 'open') {
+          console.log(`Periodic queue check for peerId: ${peerId}, data channel state: ${peer.dc.readyState}`);
+          processQueue(peerId);
+        }
+      });
+    }, 2000);
+
+    async function populateCameraList() {
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoDevices = devices.filter(device => device.kind === 'videoinput');
+        cameraSelect.innerHTML = videoDevices.map(device =>
+          `<option value="${device.deviceId}">${device.label || 'Camera'}</option>`
+        ).join('');
+        if (videoDevices.length > 0) {
+          selectedCamera = videoDevices[0].deviceId;
+        }
+      } catch (err) {
+        console.error('Error enumerating devices:', err);
+        alert('Unable to list cameras');
+      }
+    }
+
+    function toggleFullscreen() {
+      if (!document.fullscreenElement) {
+        remoteVideo.requestFullscreen().catch(err => {
+          console.error('Error attempting to enable fullscreen:', err);
+        });
+      } else {
+        document.exitFullscreen();
+      }
+    }
+
+    function adjustVolume() {
+      remoteVideo.volume = volumeSlider.value;
+    }
+
+    function toggleInstructions() {
+      if (instructions.style.display === 'none') {
+        instructions.style.display = 'block';
+        toggleInstructionsBtn.textContent = 'Hide Instructions';
+      } else {
+        instructions.style.display = 'none';
+        toggleInstructionsBtn.textContent = 'Show Instructions';
+      }
+    }
+
+    function openSignalingPopup() {
+      signalingPopup.style.display = 'block';
+      signalingOverlay.style.display = 'block';
+    }
+
+    function closeSignalingPopup() {
+      signalingPopup.style.display = 'none';
+      signalingOverlay.style.display = 'none';
+    }
+
+    function updateStreamTitle() {
+      streamTitle = streamTitleInput.value.trim();
+      if (streamTitle && isBroadcaster) {
+        streamTitleDisplay.textContent = `Stream Title: ${streamTitle}`;
+        const msg = { type: 'streamTitle', title: streamTitle };
+        peers.forEach((peer, peerId) => {
+          if (peer.pc.connectionState === 'connected' && peer.dc && peer.dc.readyState === 'open') {
+            console.log(`Sending stream title to peerId: ${peerId}`);
+            peer.dc.send(JSON.stringify(msg));
+          } else {
+            queueMessage(peerId, msg);
+          }
+        });
+      }
+    }
+
+    function queueMessage(peerId, message) {
+      if (!commentQueue.has(peerId)) {
+        commentQueue.set(peerId, []);
+      }
+      commentQueue.get(peerId).push(message);
+      console.log(`Queued message for peerId: ${peerId}, message:`, message);
+    }
+
+    function processQueue(peerId) {
+      if (commentQueue.has(peerId)) {
+        const queue = commentQueue.get(peerId);
+        const peer = peers.get(peerId);
+        if (!peer || !peer.dc) {
+          console.warn(`No peer or data channel for peerId: ${peerId}`);
+          return;
+        }
+        console.log(`Processing queue for peerId: ${peerId}, data channel state: ${peer.dc.readyState}`);
+        while (queue.length > 0 && peer.pc.connectionState === 'connected' && peer.dc.readyState === 'open') {
+          const message = queue.shift();
+          console.log(`Sending queued message to peerId: ${peerId}, message:`, message);
+          peer.dc.send(JSON.stringify(message));
+        }
+        if (queue.length === 0) {
+          commentQueue.delete(peerId);
+        } else {
+          console.log(`Remaining messages in queue for peerId: ${peerId}, queue:`, queue);
+        }
+      }
+    }
+
+    async function renegotiate(peerId) {
+      const peer = peers.get(peerId);
+      if (!peer || peer.pc.signalingState === 'closed') return;
+      try {
+        const offer = await peer.pc.createOffer();
+        await peer.pc.setLocalDescription(offer);
+        console.log(`Renegotiation offer created for peerId: ${peerId}`);
+        const signalingMsg = JSON.stringify({
+          type: 'offer',
+          offer: peer.pc.localDescription,
+          iceCandidates: peer.iceCandidates,
+          streamId,
+          peerId
+        });
+        signalingDataOutput.value = signalingMsg;
+        openSignalingPopup();
+        alert(`Connection failed. New signaling data generated for peerId: ${peerId}. Please share this with the peer and try again.`);
+      } catch (err) {
+        console.error(`Renegotiation failed for peerId: ${peerId}, error:`, err);
+      }
+    }
+
+    function createPeerConnection(peerId, isDownstream = false) {
+      console.log(`${isBroadcaster ? 'Broadcaster' : 'Viewer'} creating peer connection for peerId: ${peerId}, isDownstream: ${isDownstream}`);
+      const pc = new RTCPeerConnection({ iceServers });
+      const iceCandidates = [];
+      let dc = pc.createDataChannel('bitstreams'); // Automatic data channel creation
+
+      pc.onicecandidate = (event) => {
+        if (event.candidate) {
+          console.log(`ICE candidate collected for peerId: ${peerId}, candidate:`, event.candidate);
+          iceCandidates.push(event.candidate);
+        }
+      };
+
+      pc.ontrack = (event) => {
+        console.log(`Received remote track from peerId: ${peerId}, event:`, event);
+        receivedStream = event.streams[0];
+        remoteVideo.srcObject = receivedStream;
+        volumeControl.style.display = 'block';
+        shareStreamBtn.style.display = 'block';
+
+        peers.forEach((peer, pid) => {
+          if (peer.isDownstream && peer.pc.signalingState !== 'closed') {
+            console.log(`Forwarding received stream to downstream peerId: ${pid}`);
+            receivedStream.getTracks().forEach(track => {
+              peer.pc.addTrack(track, receivedStream);
+              console.log(`Forwarded track to peerId: ${pid}, track:`, track);
+            });
+          }
+        });
+      };
+
+      pc.onconnectionstatechange = () => {
+        console.log(`Peer connection state for peerId: ${peerId}, state: ${pc.connectionState}`);
+        if (pc.connectionState === 'failed') {
+          console.error(`Connection failed with peerId: ${peerId}`);
+          alert(`Connection failed with peerId: ${peerId}. Generating new signaling data to retry.`);
+          renegotiate(peerId);
+        } else if (pc.connectionState === 'connected') {
+          console.log(`Connection successfully established with peerId: ${peerId}`);
+          if (isBroadcaster && dc && dc.readyState === 'open') {
+            console.log(`Resending streamInfo to peerId: ${peerId}`);
+            dc.send(JSON.stringify({
+              type: 'streamInfo',
+              streamId,
+              name: bitStreamName,
+              bitStreamName
+            }));
+            if (streamTitle) {
+              console.log(`Resending streamTitle to peerId: ${peerId}`);
+              dc.send(JSON.stringify({
+                type: 'streamTitle',
+                title: streamTitle
+              }));
+            }
+          }
+          knownStreams.forEach(s => {
+            if (dc && dc.readyState === 'open') {
+              console.log(`Resending known streamInfo to peerId: ${peerId}, stream:`, s);
+              dc.send(JSON.stringify({
+                type: 'streamInfo',
+                streamId: s.id,
+                name: s.name,
+                bitStreamName: s.bitStreamName || 'Anonymous'
+              }));
+            }
+          });
+          processQueue(peerId);
+        }
+      };
+
+      pc.oniceconnectionstatechange = () => {
+        console.log(`ICE connection state for peerId: ${peerId}, state: ${pc.iceConnectionState}`);
+      };
+
+      pc.onicegatheringstatechange = () => {
+        console.log(`ICE gathering state for peerId: ${peerId}, state: ${pc.iceGatheringState}`);
+      };
+
+      pc.ondatachannel = (event) => {
+        console.log(`Received data channel from peerId: ${peerId}`);
+        dc = event.channel;
+        setupDataChannel(dc, peerId);
+        peers.get(peerId).dc = dc;
+      };
+
+      setupDataChannel(dc, peerId);
+
+      if (localStream) {
+        console.log(`Adding local stream tracks to peer connection for peerId: ${peerId}`);
+        localStream.getTracks().forEach(track => {
+          pc.addTrack(track, localStream);
+          console.log(`Added local track:`, track);
+        });
+      }
+
+      if (isDownstream && receivedStream) {
+        console.log(`Forwarding received stream to downstream peerId: ${peerId}`);
+        receivedStream.getTracks().forEach(track => {
+          pc.addTrack(track, receivedStream);
+          console.log(`Forwarded track to peerId: ${peerId}, track:`, track);
+        });
+      }
+
+      peers.set(peerId, { pc, dc, iceCandidates, isDownstream });
+      return pc;
+    }
+
+    function setupDataChannel(dc, peerId) {
+      dc.onopen = () => {
+        console.log(`Data channel opened with peerId: ${peerId}, state: ${dc.readyState}`);
+        if (isBroadcaster) {
+          console.log(`Sending streamInfo to peerId: ${peerId}`);
+          dc.send(JSON.stringify({
+            type: 'streamInfo',
+            streamId,
+            name: bitStreamName,
+            bitStreamName
+          }));
+          if (streamTitle) {
+            console.log(`Sending streamTitle to peerId: ${peerId}`);
+            dc.send(JSON.stringify({
+              type: 'streamTitle',
+              title: streamTitle
+            }));
+          }
+        }
+        knownStreams.forEach(s => {
+          console.log(`Sending known streamInfo to peerId: ${peerId}, stream:`, s);
+          dc.send(JSON.stringify({
+            type: 'streamInfo',
+            streamId: s.id,
+            name: s.name,
+            bitStreamName: s.bitStreamName || 'Anonymous'
+          }));
+        });
+        processQueue(peerId);
+      };
+      dc.onmessage = (event) => {
+        console.log(`Received data channel message from peerId: ${peerId}, event:`, event);
+        let msg;
+        try {
+          msg = JSON.parse(event.data);
+        } catch (err) {
+          console.error(`Failed to parse data channel message from peerId: ${peerId}, error:`, err);
+          return;
+        }
+        console.log(`Parsed message from peerId: ${peerId}, msg:`, msg);
+
+        if (msg.type === 'streamInfo') {
+          knownStreams.set(msg.streamId, {
+            id: msg.streamId,
+            name: msg.name,
+            bitStreamName: msg.bitStreamName || 'Anonymous'
+          });
+          updateStreamList();
+          relayMessage(peerId, msg);
+        } else if (msg.type === 'streamTitle') {
+          streamTitleDisplay.textContent = `Stream Title: ${msg.title}`;
+          relayMessage(peerId, msg);
+        } else if (msg.type === 'comment') {
+          console.log(`Displaying comment from peerId: ${peerId}, comment:`, msg);
+          const div = document.createElement('div');
+          div.textContent = `${msg.user}: ${msg.text}`;
+          comments.appendChild(div);
+          comments.scrollTop = comments.scrollHeight;
+          relayMessage(peerId, msg);
+        } else {
+          console.warn(`Unknown message type from peerId: ${peerId}, msg:`, msg);
+        }
+      };
+      dc.onerror = (error) => {
+        console.error(`Data channel error for peerId: ${peerId}, error:`, error);
+      };
+      dc.onclose = () => {
+        console.log(`Data channel closed for peerId: ${peerId}`);
+      };
+      dc.onstatechange = () => {
+        console.log(`Data channel state changed for peerId: ${peerId}, state: ${dc.readyState}`);
+      };
+    }
+
+    function relayMessage(senderPeerId, msg) {
+      console.log(`Relaying message from senderPeerId: ${senderPeerId}, msg:`, msg);
+      peers.forEach((peer, peerId) => {
+        if (peerId !== senderPeerId) {
+          if (peer.pc.connectionState === 'connected' && peer.dc && peer.dc.readyState === 'open') {
+            console.log(`Relaying message to peerId: ${peerId}, msg:`, msg);
+            peer.dc.send(JSON.stringify(msg));
+          } else {
+            console.log(`Data channel not open for peerId: ${peerId}, state: ${peer.dc ? peer.dc.readyState : 'no data channel'}`);
+            queueMessage(peerId, msg);
+          }
+        } else {
+          console.log(`Skipping relay to sender peerId: ${peerId}`);
+        }
+      });
+    }
+
+    async function startStream() {
+      bitStreamName = bitStreamNameInput.value.trim();
+      if (!bitStreamName) {
+        alert('Please enter your BitStream Name');
+        return;
+      }
+      streamId = Math.random().toString(36).substring(2, 10);
+      streamIdDisplay.textContent = `Your Stream ID: ${streamId}`;
+      streamTitleSection.style.display = 'block';
+      try {
+        selectedCamera = cameraSelect.value;
+        localStream = await navigator.mediaDevices.getUserMedia({
+          video: { deviceId: selectedCamera ? { exact: selectedCamera } : undefined },
+          audio: true
+        });
+        localVideo.srcObject = localStream;
+        localVideo.style.display = 'block';
+        isBroadcaster = true;
+        cameraToggle.style.display = 'none';
+        shareStreamBtn.style.display = 'none';
+        knownStreams.set(streamId, { id: streamId, name: bitStreamName, bitStreamName });
+        updateStreamList();
+
+        peers.forEach((peer, peerId) => {
+          if (peer.pc.signalingState !== 'closed') {
+            console.log(`Adding local stream tracks to existing peer connection for peerId: ${peerId}`);
+            localStream.getTracks().forEach(track => {
+              peer.pc.addTrack(track, localStream);
+              console.log(`Added local track to peerId: ${peerId}, track:`, track);
+            });
+          }
+        });
+      } catch (err) {
+        console.error('Error accessing media devices:', err);
+        alert('Unable to access camera/microphone');
+      }
+    }
+
+    function stopStream() {
+      if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+        localStream = null;
+      }
+      if (receivedStream) {
+        receivedStream = null;
+      }
+      peers.forEach(({ pc }) => pc.close());
+      peers.clear();
+      knownStreams.clear();
+      commentQueue.clear();
+      updateStreamList();
+      localVideo.srcObject = null;
+      localVideo.style.display = 'none';
+      remoteVideo.srcObject = null;
+      volumeControl.style.display = 'none';
+      streamIdDisplay.textContent = '';
+      streamTitleDisplay.textContent = '';
+      streamTitleSection.style.display = 'none';
+      signalingDataOutput.value = '';
+      isBroadcaster = false;
+      cameraToggle.style.display = 'block';
+      shareStreamBtn.style.display = 'none';
+      streamId = Math.random().toString(36).substring(2, 10);
+      streamTitle = '';
+      upstreamPeerId = null;
+    }
+
+    async function toggleCamera() {
+      if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+        localStream = null;
+        localVideo.srcObject = null;
+        localVideo.style.display = 'none';
+        cameraToggle.textContent = 'Enable 1v1 Chat';
+        peers.forEach((peer, peerId) => {
+          if (peer.pc.signalingState !== 'closed') {
+            peer.pc.getSenders().forEach(sender => {
+              peer.pc.removeTrack(sender);
+              console.log(`Removed track from peerId: ${peerId}`);
+            });
+            if (receivedStream) {
+              receivedStream.getTracks().forEach(track => {
+                peer.pc.addTrack(track, receivedStream);
+                console.log(`Forwarded received track to peerId: ${peerId}, track:`, track);
+              });
+            }
+          }
+        });
+      } else {
+        bitStreamName = bitStreamNameInput.value.trim();
+        if (!bitStreamName) {
+          alert('Please enter your BitStream Name before enabling 1v1 chat');
+          return;
+        }
+        try {
+          localStream = await navigator.mediaDevices.getUserMedia({
+            video: true,
+            audio: true
+          });
+          localVideo.srcObject = localStream;
+          localVideo.style.display = 'block';
+          cameraToggle.textContent = 'Disable 1v1 Chat';
+          peers.forEach((peer, peerId) => {
+            if (peer.pc.signalingState !== 'closed') {
+              console.log(`Adding local stream tracks to peer connection for peerId: ${peerId}`);
+              localStream.getTracks().forEach(track => {
+                peer.pc.addTrack(track, localStream);
+                console.log(`Added local track to peerId: ${peerId}, track:`, track);
+              });
+            }
+          });
+        } catch (err) {
+          console.error('Error accessing media devices:', err);
+          alert('Unable to access camera/microphone');
+        }
+      }
+    }
+
+    async function generateSignalingData() {
+      if (!streamId || !bitStreamName) {
+        alert('Please start a stream first.');
+        return;
+      }
+      if (!localStream) {
+        alert('Stream is not ready. Please wait until the stream starts.');
+        return;
+      }
+      const peerId = Math.random().toString(36).substring(2, 10);
+      const pc = createPeerConnection(peerId);
+      try {
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        await new Promise(resolve => {
+          if (pc.iceGatheringState === 'complete') {
+            resolve();
+          } else {
+            const timeout = setTimeout(() => {
+              console.log(`ICE gathering timeout for peerId: ${peerId}`);
+              resolve();
+            }, 5000);
+            pc.onicegatheringstatechange = () => {
+              if (pc.iceGatheringState === 'complete') {
+                clearTimeout(timeout);
+                resolve();
+              }
+            };
+          }
+        });
+        const signalingMsg = JSON.stringify({
+          type: 'offer',
+          offer: pc.localDescription,
+          iceCandidates: peers.get(peerId).iceCandidates,
+          streamId,
+          peerId
+        });
+        console.log(`Broadcaster generated signaling data for peerId: ${peerId}, data:`, signalingMsg);
+        signalingDataOutput.value = signalingMsg;
+        openSignalingPopup();
+      } catch (err) {
+        console.error(`Error generating signaling data for peerId: ${peerId}, error:`, err);
+        alert('Failed to generate signaling data. Check the console for details.');
+      }
+    }
+
+    async function shareStream() {
+      if (!receivedStream) {
+        alert('No stream available to share. Please connect to a stream first.');
+        return;
+      }
+      const peerId = Math.random().toString(36).substring(2, 10);
+      const pc = createPeerConnection(peerId, true);
+      try {
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        await new Promise(resolve => {
+          if (pc.iceGatheringState === 'complete') {
+            resolve();
+          } else {
+            const timeout = setTimeout(() => {
+              console.log(`ICE gathering timeout for peerId: ${peerId}`);
+              resolve();
+            }, 5000);
+            pc.onicegatheringstatechange = () => {
+              if (pc.iceGatheringState === 'complete') {
+                clearTimeout(timeout);
+                resolve();
+              }
+            };
+          }
+        });
+        const signalingMsg = JSON.stringify({
+          type: 'offer',
+          offer: pc.localDescription,
+          iceCandidates: peers.get(peerId).iceCandidates,
+          streamId,
+          peerId
+        });
+        console.log(`Viewer generated signaling data for downstream peerId: ${peerId}, data:`, signalingMsg);
+        signalingDataOutput.value = signalingMsg;
+        openSignalingPopup();
+      } catch (err) {
+        console.error(`Error generating signaling data for peerId: ${peerId}, error:`, err);
+        alert('Failed to generate signaling data for sharing. Check the console for details.');
+      }
+    }
+
+    async function connectToPeer() {
+      bitStreamName = bitStreamNameInput.value.trim();
+      if (!bitStreamName) {
+        alert('Please enter your BitStream Name before connecting');
+        return;
+      }
+      const data = signalingData.value.trim();
+      if (!data) {
+        alert('Please paste signaling data to connect to a peer.');
+        return;
+      }
+      let msg;
+      try {
+        msg = JSON.parse(data);
+      } catch (err) {
+        console.error('JSON parsing error:', err);
+        alert(`Failed to parse signaling data: ${err.message}. Ensure you copied the full JSON data.`);
+        return;
+      }
+      if (!msg.type || !['offer', 'answer'].includes(msg.type)) {
+        alert('Signaling data must have a type of "offer" or "answer".');
+        return;
+      }
+      if (msg.type === 'offer' && (!msg.offer || !msg.streamId || !msg.peerId)) {
+        alert('Offer signaling data must include "offer", "streamId", and "peerId".');
+        return;
+      }
+      if (msg.type === 'answer' && (!msg.answer || !msg.streamId || !msg.peerId)) {
+        alert('Answer signaling data must include "answer", "streamId", and "peerId".');
+        return;
+      }
+      const peerId = msg.peerId;
+      let pc = peers.get(peerId)?.pc || createPeerConnection(peerId);
+
+      if (msg.type === 'offer') {
+        upstreamPeerId = peerId;
+        streamId = msg.streamId;
+      }
+
+      try {
+        if (msg.type === 'offer') {
+          console.log(`Viewer connecting to peer with peerId: ${peerId}, offer:`, msg.offer);
+          await pc.setRemoteDescription(new RTCSessionDescription(msg.offer));
+          const answer = await pc.createAnswer();
+          await pc.setLocalDescription(answer);
+          await new Promise(resolve => {
+            if (pc.iceGatheringState === 'complete') {
+              resolve();
+            } else {
+              const timeout = setTimeout(() => {
+                console.log(`ICE gathering timeout for peerId: ${peerId}`);
+                resolve();
+              }, 5000);
+              pc.onicegatheringstatechange = () => {
+                if (pc.iceGatheringState === 'complete') {
+                  clearTimeout(timeout);
+                  resolve();
+                }
+              };
+            }
+          });
+          const signalingMsg = JSON.stringify({
+            type: 'answer',
+            answer: pc.localDescription,
+            iceCandidates: peers.get(peerId).iceCandidates,
+            streamId,
+            peerId
+          });
+          console.log(`Viewer generated answer for peerId: ${peerId}, answer:`, signalingMsg);
+          signalingDataOutput.value = signalingMsg;
+          openSignalingPopup();
+        } else if (msg.type === 'answer') {
+          console.log(`Processing answer from peerId: ${peerId}, answer:`, msg.answer);
+          await pc.setRemoteDescription(new RTCSessionDescription(msg.answer));
+        }
+
+        if (msg.iceCandidates && msg.iceCandidates.length > 0) {
+          for (const candidate of msg.iceCandidates) {
+            await pc.addIceCandidate(new RTCIceCandidate(candidate));
+            console.log(`Added ICE candidate for peerId: ${peerId}, candidate:`, candidate);
+          }
+        }
+        signalingData.value = '';
+      } catch (err) {
+        console.error(`Error during peer connection for peerId: ${peerId}, error:`, err);
+        alert(`Failed to connect to peerId: ${peerId}. Check the console for details and try again with new signaling data.`);
+      }
+    }
+
+    async function watchStream(targetId) {
+      if (targetId === streamId) return;
+      const peerId = Math.random().toString(36).substring(2, 10);
+      const pc = createPeerConnection(peerId);
+      try {
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        await new Promise(resolve => {
+          if (pc.iceGatheringState === 'complete') {
+            resolve();
+          } else {
+            const timeout = setTimeout(() => {
+              console.log(`ICE gathering timeout for peerId: ${peerId}`);
+              resolve();
+            }, 5000);
+            pc.onicegatheringstatechange = () => {
+              if (pc.iceGatheringState === 'complete') {
+                clearTimeout(timeout);
+                resolve();
+              }
+            };
+          }
+        });
+        const signalingMsg = JSON.stringify({
+          type: 'offer',
+          offer: pc.localDescription,
+          iceCandidates: peers.get(peerId).iceCandidates,
+          streamId,
+          peerId
+        });
+        console.log(`Generated offer for stream targetId: ${targetId}, peerId: ${peerId}, data:`, signalingMsg);
+        signalingDataOutput.value = signalingMsg;
+        openSignalingPopup();
+      } catch (err) {
+        console.error(`Error creating offer for stream targetId: ${targetId}, peerId: ${peerId}, error:`, err);
+        alert('Failed to initiate connection to stream. Check the console for details.');
+      }
+    }
+
+    function sendComment() {
+      const text = commentInput.value.trim();
+      bitStreamName = bitStreamNameInput.value.trim();
+      if (!bitStreamName) {
+        alert('Please enter your BitStream Name before commenting');
+        return;
+      }
+      if (text) {
+        const user = bitStreamName;
+        const msg = { type: 'comment', user, text };
+        const div = document.createElement('div');
+        div.textContent = `${user}: ${msg.text}`;
+        comments.appendChild(div);
+        comments.scrollTop = comments.scrollHeight;
+        peers.forEach((peer, peerId) => {
+          if (peer.pc.connectionState === 'connected' && peer.dc && peer.dc.readyState === 'open') {
+            console.log(`Sending comment to peerId: ${peerId}, msg:`, msg);
+            peer.dc.send(JSON.stringify(msg));
+          } else {
+            console.log(`Data channel not open for peerId: ${peerId}, state: ${peer.dc ? peer.dc.readyState : 'no data channel'}`);
+            queueMessage(peerId, msg);
+          }
+        });
+        commentInput.value = '';
+      }
+    }
+
+    function updateStreamList() {
+      streamList.innerHTML = '';
+      knownStreams.forEach(s => {
+        const li = document.createElement('li');
+        li.textContent = `${s.name} by ${s.bitStreamName} (ID: ${s.id})`;
+        li.onclick = () => watchStream(s.id);
+        streamList.appendChild(li);
+      });
+    }
+
+    function rgbToHex(rgb) {
+      const match = rgb.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/);
+      if (!match) return rgb;
+      const r = parseInt(match[1]).toString(16).padStart(2, '0');
+      const g = parseInt(match[2]).toString(16).padStart(2, '0');
+      const b = parseInt(match[3]).toString(16).padStart(2, '0');
+      return `#${r}${g}${b}`;
+    }
+
+    function openSettings() {
+      settingsPopup.style.display = 'block';
+      settingsOverlay.style.display = 'block';
+      const currentBg = document.body.style.background || defaultColors.background;
+      const currentBtn = document.querySelector('button').style.background || defaultColors.button;
+      const currentText = document.body.style.color || defaultColors.text;
+      bgColorInput.value = currentBg.startsWith('rgb') ? rgbToHex(currentBg) : currentBg;
+      btnColorInput.value = currentBtn.startsWith('rgb') ? rgbToHex(currentBtn) : currentBtn;
+      textColorInput.value = currentText.startsWith('rgb') ? rgbToHex(currentText) : currentText;
+    }
+
+    function closeSettings() {
+      settingsPopup.style.display = 'none';
+      settingsOverlay.style.display = 'none';
+    }
+
+    function applyColors() {
+      const bgColor = bgColorInput.value.trim();
+      const btnColor = btnColorInput.value.trim();
+      const textColor = textColorInput.value.trim();
+
+      if (bgColor) {
+        document.body.style.background = bgColor;
+        document.getElementById('container').style.background = bgColor;
+        document.getElementById('instructions').style.background = bgColor;
+        document.getElementById('signalingPopup').style.background = bgColor;
+        document.getElementById('comments').style.background = bgColor;
+        document.querySelectorAll('#streamList li').forEach(li => {
+          li.style.background = adjustBrightness(bgColor, -10);
+        });
+        document.querySelectorAll('#streamList li:hover').forEach(li => {
+          li.style.background = adjustBrightness(bgColor, -20);
+        });
+      }
+
+      if (btnColor) {
+        document.querySelectorAll('button').forEach(button => {
+          button.style.background = btnColor;
+          button.style.setProperty('--hover-color', adjustBrightness(btnColor, -20));
+        });
+      }
+
+      if (textColor) {
+        document.body.style.color = textColor;
+      }
+
+      closeSettings();
+    }
+
+    function resetColors() {
+      document.body.style.background = defaultColors.background;
+      document.getElementById('container').style.background = 'white';
+      document.getElementById('instructions').style.background = '#e9ecef';
+      document.getElementById('signalingPopup').style.background = 'white';
+      document.getElementById('comments').style.background = '#fafafa';
+      document.querySelectorAll('#streamList li').forEach(li => {
+        li.style.background = '#eee';
+      });
+      document.querySelectorAll('#streamList li:hover').forEach(li => {
+        li.style.background = '#ddd';
+      });
+
+      document.body.style.color = defaultColors.text;
+      document.querySelectorAll('button').forEach(button => {
+        button.style.background = defaultColors.button;
+        button.style.setProperty('--hover-color', defaultColors.buttonHover);
+      });
+
+      closeSettings();
+    }
+
+    function adjustBrightness(hex, percent) {
+      hex = hex.replace('#', '');
+      const r = parseInt(hex.substr(0, 2), 16);
+      const g = parseInt(hex.substr(2, 2), 16);
+      const b = parseInt(hex.substr(4, 2), 16);
+      const adjustedR = Math.max(0, Math.min(255, r + (r * percent / 100)));
+      const adjustedG = Math.max(0, Math.min(255, g + (g * percent / 100)));
+      const adjustedB = Math.max(0, Math.min(255, b + (b * percent / 100)));
+      return `#${Math.round(adjustedR).toString(16).padStart(2, '0')}${Math.round(adjustedG).toString(16).padStart(2, '0')}${Math.round(adjustedB).toString(16).padStart(2, '0')}`;
+    }
+
+    const styleSheet = document.createElement('style');
+    styleSheet.innerHTML = `
+      button:hover {
+        background: var(--hover-color, ${defaultColors.buttonHover}) !important;
+      }
+    `;
+    document.head.appendChild(styleSheet);
+
+    commentInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') sendComment();
+    });
+
+    window.onload = () => {
+      populateCameraList();
+      document.querySelectorAll('input, textarea').forEach(element => {
+        element.removeAttribute('disabled');
+        element.style.pointerEvents = 'auto';
+      });
+    };
+  </script>
+</body>
+</html>
