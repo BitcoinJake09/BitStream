@@ -3,23 +3,110 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="BitStreams - A peer-to-peer livestreaming platform using WebRTC for secure, decentralized streaming.">
+  <meta name="keywords" content="P2P, livestreaming, WebRTC, decentralized, streaming, BitStreams">
+  <meta name="author" content="BitcoinJake09">
   <title>BitStreams - P2P Livestreaming</title>
   <style>
+    :root {
+      --background-light: #f0f0f0;
+      --container-bg-light: white;
+      --text-color-light: #333;
+      --button-bg-light: #007bff;
+      --button-hover-light: #0056b3;
+      --instructions-bg-light: #e9ecef;
+      --comments-bg-light: #fafafa;
+      --stream-list-bg-light: #eee;
+      --stream-list-hover-light: #ddd;
+      --input-bg-light: white;
+      --input-text-light: #333;
+      --input-border-light: #ccc;
+      --shadow-light: rgba(0,0,0,0.1);
+      --overlay-bg-light: rgba(0,0,0,0.5);
+
+      --background-dark: #1a1a1a;
+      --container-bg-dark: #2a2a2a;
+      --text-color-dark: #e0e0e0;
+      --button-bg-dark: #1e90ff;
+      --button-hover-dark: #1c7cd6;
+      --instructions-bg-dark: #333;
+      --comments-bg-dark: #222;
+      --stream-list-bg-dark: #444;
+      --stream-list-hover-dark: #555;
+      --input-bg-dark: #333;
+      --input-text-dark: #e0e0e0;
+      --input-border-dark: #555;
+      --shadow-dark: rgba(0,0,0,0.5);
+      --overlay-bg-dark: rgba(0,0,0,0.7);
+
+      --background: var(--background-dark);
+      --container-bg: var(--container-bg-dark);
+      --text-color: var(--text-color-dark);
+      --button-bg: var(--button-bg-dark);
+      --button-hover: var(--button-hover-dark);
+      --instructions-bg: var(--instructions-bg-dark);
+      --comments-bg: var(--comments-bg-dark);
+      --stream-list-bg: var(--stream-list-bg-dark);
+      --stream-list-hover: var(--stream-list-hover-dark);
+      --input-bg: var(--input-bg-dark);
+      --input-text: var(--input-text-dark);
+      --input-border: var(--input-border-dark);
+      --shadow: var(--shadow-dark);
+      --overlay-bg: var(--overlay-bg-dark);
+    }
+
+    :root.light-mode {
+      --background: var(--background-light);
+      --container-bg: var(--container-bg-light);
+      --text-color: var(--text-color-light);
+      --button-bg: var(--button-bg-light);
+      --button-hover: var(--button-hover-light);
+      --instructions-bg: var(--instructions-bg-light);
+      --comments-bg: var(--comments-bg-light);
+      --stream-list-bg: var(--stream-list-bg-light);
+      --stream-list-hover: var(--stream-list-hover-light);
+      --input-bg: var(--input-bg-light);
+      --input-text: var(--input-text-light);
+      --input-border: var(--input-border-light);
+      --shadow: var(--shadow-light);
+      --overlay-bg: var(--overlay-bg-light);
+    }
+
+    :root.dark-mode {
+      --background: var(--background-dark);
+      --container-bg: var(--container-bg-dark);
+      --text-color: var(--text-color-dark);
+      --button-bg: var(--button-bg-dark);
+      --button-hover: var(--button-hover-dark);
+      --instructions-bg: var(--instructions-bg-dark);
+      --comments-bg: var(--comments-bg-dark);
+      --stream-list-bg: var(--stream-list-bg-dark);
+      --stream-list-hover: var(--stream-list-hover-dark);
+      --input-bg: var(--input-bg-dark);
+      --input-text: var(--input-text-dark);
+      --input-border: var(--input-border-dark);
+      --shadow: var(--shadow-dark);
+      --overlay-bg: var(--overlay-bg-dark);
+    }
+
     body {
       font-family: Arial, sans-serif;
       margin: 0;
       padding: 20px;
-      background: #f0f0f0;
-      color: #333;
+      background: var(--background);
+      color: var(--text-color);
+      transition: all 0.3s ease;
     }
+
     #container {
       max-width: 800px;
       margin: 0 auto;
-      background: white;
+      background: var(--container-bg);
       padding: 20px;
       border-radius: 8px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      box-shadow: 0 0 10px var(--shadow);
     }
+
     video {
       width: 100%;
       max-width: 400px;
@@ -28,89 +115,107 @@
       margin: 10px 0;
       cursor: pointer;
     }
+
     #localVideo {
       display: none;
     }
+
     #remoteVideo {
-      display: none; /* Initially hidden until a stream is received */
+      display: none;
       width: 100%;
       max-width: 400px;
       background: black;
       border-radius: 4px;
       margin: 10px 0;
     }
+
     #streamList {
       margin: 20px 0;
       padding: 0;
       list-style: none;
     }
+
     #streamList li {
       padding: 10px;
-      background: #eee;
+      background: var(--stream-list-bg);
       margin: 5px 0;
       border-radius: 4px;
       cursor: pointer;
     }
+
     #streamList li:hover {
-      background: #ddd;
+      background: var(--stream-list-hover);
     }
+
     #comments {
       height: 150px;
       overflow-y: auto;
-      border: 1px solid #ccc;
+      border: 1px solid var(--input-border);
       padding: 10px;
       margin: 10px 0;
-      background: #fafafa;
+      background: var(--comments-bg);
       border-radius: 4px;
+      color: var(--text-color);
     }
+
     textarea, input[type="text"], select, input[type="color"], input[type="range"] {
       width: 100%;
       padding: 8px;
       margin: 5px 0;
-      border: 1px solid #ccc;
+      border: 1px solid var(--input-border);
       border-radius: 4px;
       box-sizing: border-box;
+      background: var(--input-bg);
+      color: var(--input-text);
     }
+
     button {
       padding: 8px 16px;
-      background: #007bff;
+      background: var(--button-bg);
       color: white;
       border: none;
       border-radius: 4px;
       cursor: pointer;
       margin: 5px;
     }
+
     button:hover {
-      background: var(--hover-color, #0056b3);
+      background: var(--button-hover);
     }
+
     #instructions {
       margin: 10px 0;
       padding: 10px;
-      background: #e9ecef;
+      background: var(--instructions-bg);
       border-radius: 4px;
       display: none;
     }
+
     #toggleInstructionsBtn {
       margin: 10px 0;
       background: #6c757d;
     }
+
     #toggleInstructionsBtn:hover {
       background: #5a6268;
     }
+
     #signalingPopup {
       display: none;
       position: fixed;
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      background: white;
+      background: var(--container-bg);
       padding: 20px;
       border-radius: 8px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.3);
+      box-shadow: 0 0 10px var(--shadow);
       z-index: 1000;
       width: 80%;
       max-width: 600px;
+      color: var(--text-color);
     }
+
     #signalingOverlay {
       display: none;
       position: fixed;
@@ -118,21 +223,24 @@
       left: 0;
       width: 100%;
       height: 100%;
-      background: rgba(0,0,0,0.5);
+      background: var(--overlay-bg);
       z-index: 999;
     }
+
     #settingsPopup {
       display: none;
       position: fixed;
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      background: white;
+      background: var(--container-bg);
       padding: 20px;
       border-radius: 8px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.3);
+      box-shadow: 0 0 10px var(--shadow);
       z-index: 1000;
+      color: var(--text-color);
     }
+
     #settingsOverlay {
       display: none;
       position: fixed;
@@ -140,53 +248,93 @@
       left: 0;
       width: 100%;
       height: 100%;
-      background: rgba(0,0,0,0.5);
+      background: var(--overlay-bg);
       z-index: 999;
     }
+
     #settingsPopup select {
       margin: 5px 0;
+      background: var(--input-bg);
+      color: var(--input-text);
+      border: 1px solid var(--input-border);
     }
+
+    #privacyPopup {
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: var(--container-bg);
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 0 10px var(--shadow);
+      z-index: 1001;
+      width: 80%;
+      max-width: 500px;
+      color: var(--text-color);
+      text-align: center;
+    }
+
+    #privacyOverlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: var(--overlay-bg);
+      z-index: 1000;
+    }
+
     #volumeControl {
       display: none;
       max-width: 400px;
     }
+
     .button-group {
       margin: 10px 0;
       display: flex;
       flex-wrap: wrap;
       gap: 10px;
     }
+
     .section {
       margin-bottom: 20px;
     }
+
     #streamTitleSection {
       display: none;
       margin: 10px 0;
     }
+
     #streamTitleDisplay {
       margin: 10px 0;
       font-size: 1.2em;
       font-weight: bold;
     }
+
     #peersConnected {
       margin: 10px 0;
       font-weight: bold;
     }
-    /* Side-by-side layout for video and comments */
+
     .video-comments-container {
       display: flex;
       flex-wrap: wrap;
       gap: 20px;
       align-items: flex-start;
     }
+
     .video-section, .comments-section {
       flex: 1;
-      min-width: 300px; /* Ensure sections don't get too narrow */
+      min-width: 300px;
     }
+
     .comments-section h2 {
       margin-top: 0;
     }
-    /* Mobile layout */
+
     @media (max-width: 768px) {
       .video-comments-container {
         flex-direction: column;
@@ -195,19 +343,34 @@
         width: 100%;
       }
     }
-    /* Footer styling for developer info */
+
     footer {
       margin-top: 20px;
       text-align: center;
       font-size: 0.9em;
-      color: #666;
+      color: #888;
     }
+
     footer a {
-      color: #007bff;
+      color: var(--button-bg);
       text-decoration: none;
+      margin: 0 5px;
     }
+
     footer a:hover {
       text-decoration: underline;
+    }
+
+    .policy-section {
+      margin-top: 20px;
+      padding: 10px;
+      background: var(--instructions-bg);
+      border-radius: 4px;
+      font-size: 0.9em;
+    }
+
+    .policy-section h3 {
+      margin-top: 0;
     }
   </style>
 </head>
@@ -215,11 +378,18 @@
   <div id="settingsOverlay"></div>
   <div id="settingsPopup">
     <h2>Settings</h2>
-    <label>Background Color: <input type="text" id="bgColorInput" placeholder="#f0f0f0"></label>
-    <label>Button Color: <input type="text" id="btnColorInput" placeholder="#007bff"></label>
-    <label>Text Color: <input type="text" id="textColorInput" placeholder="#333"></label>
+    <label>Dark Mode: <input type="checkbox" id="darkModeToggle" checked></label>
+    <label>Background Color: <input type="text" id="bgColorInput" placeholder="#1a1a1a"></label>
+    <label>Button Color: <input type="text" id="btnColorInput" placeholder="#1e90ff"></label>
+    <label>Text Color: <input type="text" id="textColorInput" placeholder="#e0e0e0"></label>
+    <label>Comments Background: <input type="text" id="commentsBgInput" placeholder="#222"></label>
+    <label>Stream List Background: <input type="text" id="streamListBgInput" placeholder="#444"></label>
+    <label>Overlay Background: <input type="text" id="overlayBgInput" placeholder="rgba(0,0,0,0.7)"></label>
     <label>Camera: <select id="cameraSelect"></select></label>
     <label>Microphone: <select id="audioSelect"></select></label>
+    <p style="font-size: 0.9em; color: var(--text-color);">
+      Enter colors in hex format (e.g., #RRGGBB) for all fields except Overlay Background, which can be in rgba format (e.g., rgba(0,0,0,0.5)).
+    </p>
     <button onclick="applyColors()">Apply</button>
     <button onclick="resetColors()">Reset</button>
     <button onclick="closeSettings()">Close</button>
@@ -228,9 +398,21 @@
   <div id="signalingOverlay"></div>
   <div id="signalingPopup">
     <h3>Your Signaling Data</h3>
+    <p style="font-size: 0.9em; color: var(--text-color);">
+      <strong>Privacy Reminder:</strong> Sharing this data will expose your IP address to the recipient. Use a VPN for added privacy.
+    </p>
     <textarea id="signalingDataOutput" readonly style="height: 200px;"></textarea>
     <button onclick="copySignalingData()">Copy</button>
     <button onclick="closeSignalingPopup()">Close</button>
+  </div>
+
+  <div id="privacyOverlay"></div>
+  <div id="privacyPopup">
+    <h3>Welcome to BitStreams</h3>
+    <p>
+      BitStreams uses peer-to-peer (P2P) technology, which may expose your IP address to other users. We recommend using a VPN for privacy. By proceeding, you agree to our Terms of Service and Privacy Policy (see below).
+    </p>
+    <button onclick="acknowledgePrivacyPolicy()">I Agree</button>
   </div>
 
   <div id="container">
@@ -243,10 +425,10 @@
 
     <div class="section">
       <div id="instructions">
-        <strong>Instructions:</strong>
+        <strong>Instructions:</strong><br>
         1. Broadcaster: Enter your BitStream Name, then click "Start Stream" to begin broadcasting.<br>
         2. Broadcaster: Set a Stream Title (optional) to let viewers know what your stream is about.<br>
-        3. Broadcaster: Click "Generate Signaling Data", then copy the JSON data from the popup and share it with Viewer A (e.g., via X DMs).<br>
+        3. Broadcaster: Click "Generate Signaling Data", then copy the JSON data from the popup and share it with Viewer A (e.g., via chat).<br>
         4. Viewer A: Enter your BitStream Name, paste the JSON data below, and click "Connect" to watch the stream.<br>
         5. Viewer A: Copy the response JSON from the popup and send it back to the broadcaster to complete the connection.<br>
         6. Viewer A: Click "Share Stream" to generate new signaling data, then share it with Viewer B to relay the stream.<br>
@@ -254,12 +436,12 @@
         8. Viewer: Click "Enable 1v1 Chat" to share your video with the upstream peer (optional).<br>
         9. Double-click the video to toggle fullscreen mode.<br>
         <strong>Note:</strong> WebRTC requires HTTPS. If testing locally, use Chrome with --allow-file-access-from-files.<br>
-        <strong>Privacy Note:</strong> To protect your IP address from being exposed to peers, we recommend using a VPN while streaming or viewing.
+        <strong>Privacy Notice:</strong> BitStreams uses P2P technology, meaning your IP address may be visible to other users. We strongly recommend using a VPN to protect your privacy.
       </div>
       <input type="text" id="bitStreamName" placeholder="Enter your BitStream Name">
       <div class="button-group">
         <button onclick="startStream()">Start Stream</button>
-        <button onclick="stopStream()">Stop Stream</button>
+        <button onclick="stopStream()" id="stopStreamBtn" style="display: none;">Stop Stream</button>
         <button onclick="generateSignalingData()">Generate Signaling Data</button>
         <button onclick="shareStream()" id="shareStreamBtn" style="display: none;">Share Stream</button>
         <button onclick="toggleCamera()" id="cameraToggle">Enable 1v1 Chat</button>
@@ -305,6 +487,16 @@
       <button onclick="connectToPeer()">Connect</button>
     </div>
 
+    <div class="policy-section">
+      <h3>Terms of Service</h3>
+      <p>By using BitStreams, you agree to use it responsibly. We are not liable for any misuse, data loss, or privacy issues arising from P2P connections. Use a VPN to protect your IP address.</p>
+    </div>
+
+    <div class="policy-section">
+      <h3>Privacy Policy</h3>
+      <p>BitStreams does not collect or store personal data. As a P2P app, your IP address may be visible to peers. We recommend using a VPN. No other data is shared or stored by us.</p>
+    </div>
+
     <footer>
       Developed by BitcoinJake09 | <a href="https://github.com/BitcoinJake09/BitStream" target="_blank">GitHub Repository</a>
     </footer>
@@ -324,13 +516,20 @@
     const audioSelect = document.getElementById('audioSelect');
     const cameraToggle = document.getElementById('cameraToggle');
     const shareStreamBtn = document.getElementById('shareStreamBtn');
+    const stopStreamBtn = document.getElementById('stopStreamBtn');
     const settingsPopup = document.getElementById('settingsPopup');
     const settingsOverlay = document.getElementById('settingsOverlay');
     const signalingPopup = document.getElementById('signalingPopup');
     const signalingOverlay = document.getElementById('signalingOverlay');
+    const privacyPopup = document.getElementById('privacyPopup');
+    const privacyOverlay = document.getElementById('privacyOverlay');
     const bgColorInput = document.getElementById('bgColorInput');
     const btnColorInput = document.getElementById('btnColorInput');
     const textColorInput = document.getElementById('textColorInput');
+    const commentsBgInput = document.getElementById('commentsBgInput');
+    const streamListBgInput = document.getElementById('streamListBgInput');
+    const overlayBgInput = document.getElementById('overlayBgInput');
+    const darkModeToggle = document.getElementById('darkModeToggle');
     const instructions = document.getElementById('instructions');
     const toggleInstructionsBtn = document.getElementById('toggleInstructionsBtn');
     const bitStreamNameInput = document.getElementById('bitStreamName');
@@ -339,32 +538,74 @@
     const streamTitleDisplay = document.getElementById('streamTitleDisplay');
     const peersConnectedDisplay = document.getElementById('peersConnected');
     let localStream = null;
-    let receivedStream = null;
+    let receivedStreams = new Map();
+    let activeStream = null;
     let streamId = Math.random().toString(36).substring(2, 10);
     let bitStreamName = '';
     let streamTitle = '';
     let selectedCamera = null;
     let selectedAudio = null;
     let isBroadcaster = false;
-    let upstreamPeerId = null;
+    let upstreamPeerIds = new Set();
     let peersConnected = 0;
     let viewCount = 0;
     const peers = new Map();
     const knownStreams = new Map();
     const commentQueue = new Map();
+    const networkMap = new Map();
 
     const iceServers = [
       { urls: 'stun:stun.l.google.com:19302' },
       { urls: 'stun:stun1.l.google.com:19302' },
-      { urls: 'stun:stun2.l.google.com:19302' }
+      { urls: 'stun:stun2.l.google.com:19302' },
+      { urls: 'stun:stun3.l.google.com:19302' },
+      { urls: 'stun:stun4.l.google.com:19302' },
+      { urls: 'stun:global.stun.twilio.com:3478' },
+      { urls: 'stun:stun.nextcloud.com:443' },
+      { urls: 'stun:stun.stunprotocol.org:3478' }
     ];
 
-    const defaultColors = {
-      background: '#f0f0f0',
-      button: '#007bff',
-      buttonHover: '#0056b3',
-      text: '#333'
-    };
+    let isDarkMode = localStorage.getItem('darkMode') !== 'false';
+
+    function applyTheme() {
+      const root = document.documentElement;
+      if (isDarkMode) {
+        root.classList.add('dark-mode');
+        root.classList.remove('light-mode');
+      } else {
+        root.classList.add('light-mode');
+        root.classList.remove('dark-mode');
+      }
+      localStorage.setItem('darkMode', isDarkMode);
+
+      root.style.setProperty('--background', isDarkMode ? '#1a1a1a' : '#f0f0f0');
+      root.style.setProperty('--container-bg', isDarkMode ? '#2a2a2a' : 'white');
+      root.style.setProperty('--text-color', isDarkMode ? '#e0e0e0' : '#333');
+      root.style.setProperty('--button-bg', isDarkMode ? '#1e90ff' : '#007bff');
+      root.style.setProperty('--button-hover', isDarkMode ? '#1c7cd6' : '#0056b3');
+      root.style.setProperty('--instructions-bg', isDarkMode ? '#333' : '#e9ecef');
+      root.style.setProperty('--comments-bg', isDarkMode ? '#222' : '#fafafa');
+      root.style.setProperty('--stream-list-bg', isDarkMode ? '#444' : '#eee');
+      root.style.setProperty('--stream-list-hover', isDarkMode ? '#555' : '#ddd');
+      root.style.setProperty('--input-bg', isDarkMode ? '#333' : 'white');
+      root.style.setProperty('--input-text', isDarkMode ? '#e0e0e0' : '#333');
+      root.style.setProperty('--input-border', isDarkMode ? '#555' : '#ccc');
+      root.style.setProperty('--shadow', isDarkMode ? 'rgba(0,0,0,0.5)' : 'rgba(0,0,0,0.1)');
+      root.style.setProperty('--overlay-bg', isDarkMode ? 'rgba(0,0,0,0.7)' : 'rgba(0,0,0,0.5)');
+
+      bgColorInput.placeholder = isDarkMode ? '#1a1a1a' : '#f0f0f0';
+      btnColorInput.placeholder = isDarkMode ? '#1e90ff' : '#007bff';
+      textColorInput.placeholder = isDarkMode ? '#e0e0e0' : '#333';
+      commentsBgInput.placeholder = isDarkMode ? '#222' : '#fafafa';
+      streamListBgInput.placeholder = isDarkMode ? '#444' : '#eee';
+      overlayBgInput.placeholder = isDarkMode ? 'rgba(0,0,0,0.7)' : 'rgba(0,0,0,0.5)';
+    }
+
+    darkModeToggle.addEventListener('change', () => {
+      isDarkMode = darkModeToggle.checked;
+      applyTheme();
+      updateColorInputs();
+    });
 
     setInterval(() => {
       peers.forEach((peer, peerId) => {
@@ -381,7 +622,6 @@
         const videoDevices = devices.filter(device => device.kind === 'videoinput');
         const audioDevices = devices.filter(device => device.kind === 'audioinput');
 
-        // Populate camera selection
         cameraSelect.innerHTML = videoDevices.map(device =>
           `<option value="${device.deviceId}">${device.label || 'Camera'}</option>`
         ).join('');
@@ -389,7 +629,6 @@
           selectedCamera = videoDevices[0].deviceId;
         }
 
-        // Populate audio selection
         audioSelect.innerHTML = audioDevices.map(device =>
           `<option value="${device.deviceId}">${device.label || 'Microphone'}</option>`
         ).join('');
@@ -453,10 +692,24 @@
         });
     }
 
+    function showPrivacyPopup() {
+      const hasAcknowledged = localStorage.getItem('privacyAcknowledged');
+      if (!hasAcknowledged) {
+        privacyPopup.style.display = 'block';
+        privacyOverlay.style.display = 'block';
+      }
+    }
+
+    function acknowledgePrivacyPolicy() {
+      localStorage.setItem('privacyAcknowledged', 'true');
+      privacyPopup.style.display = 'none';
+      privacyOverlay.style.display = 'none';
+    }
+
     function updateStreamTitle() {
       streamTitle = streamTitleInput.value.trim();
       if (streamTitle && isBroadcaster) {
-        streamTitleDisplay.textContent = streamTitle; // Display only the title
+        streamTitleDisplay.textContent = streamTitle;
         const msg = { type: 'streamTitle', title: streamTitle };
         peers.forEach((peer, peerId) => {
           if (peer.pc.connectionState === 'connected' && peer.dc && peer.dc.readyState === 'open') {
@@ -466,7 +719,6 @@
             queueMessage(peerId, msg);
           }
         });
-        // Update the knownStreams entry for this stream
         if (knownStreams.has(streamId)) {
           knownStreams.get(streamId).title = streamTitle;
         }
@@ -513,26 +765,37 @@
       });
 
       if (isBroadcaster) {
-        viewCount = peersConnected;
+        viewCount = 0;
         peers.forEach((peer, peerId) => {
-          if (peer.pc.connectionState === 'connected' && peer.downstreamPeerCount !== undefined) {
-            viewCount += peer.downstreamPeerCount;
+          if (peer.pc.connectionState === 'connected') {
+            viewCount++;
+            if (peer.downstreamPeerCount !== undefined) {
+              viewCount += peer.downstreamPeerCount;
+            }
           }
         });
         peersConnectedDisplay.textContent = `Viewers: ${viewCount}`;
+        const msg = { type: 'totalViewers', count: viewCount };
+        peers.forEach((peer, peerId) => {
+          if (peer.pc.connectionState === 'connected' && peer.dc && peer.dc.readyState === 'open') {
+            peer.dc.send(JSON.stringify(msg));
+          } else {
+            queueMessage(peerId, msg);
+          }
+        });
       } else {
         peersConnectedDisplay.textContent = `Peers Connected: ${peersConnected}`;
-        if (upstreamPeerId) {
-          const peer = peers.get(upstreamPeerId);
+        upstreamPeerIds.forEach(peerId => {
+          const peer = peers.get(peerId);
           if (peer && peer.pc.connectionState === 'connected' && peer.dc && peer.dc.readyState === 'open') {
             peer.dc.send(JSON.stringify({
               type: 'peerCount',
               count: peersConnected
             }));
           } else {
-            queueMessage(upstreamPeerId, { type: 'peerCount', count: peersConnected });
+            queueMessage(peerId, { type: 'peerCount', count: peersConnected });
           }
-        }
+        });
       }
     }
 
@@ -573,17 +836,21 @@
 
       pc.ontrack = (event) => {
         console.log(`Received remote track from peerId: ${peerId}, event:`, event);
-        receivedStream = event.streams[0];
-        remoteVideo.srcObject = receivedStream;
-        remoteVideo.style.display = 'block'; // Ensure video is visible when stream is received
-        volumeControl.style.display = 'block';
-        shareStreamBtn.style.display = 'block';
+        const stream = event.streams[0];
+        receivedStreams.set(peerId, stream);
+        if (!activeStream || !activeStream.active) {
+          activeStream = stream;
+          remoteVideo.srcObject = activeStream;
+          remoteVideo.style.display = 'block';
+          volumeControl.style.display = 'block';
+          shareStreamBtn.style.display = 'block';
+        }
 
         peers.forEach((peer, pid) => {
           if (peer.isDownstream && peer.pc.signalingState !== 'closed') {
             console.log(`Forwarding received stream to downstream peerId: ${pid}`);
-            receivedStream.getTracks().forEach(track => {
-              peer.pc.addTrack(track, receivedStream);
+            stream.getTracks().forEach(track => {
+              peer.pc.addTrack(track, stream);
               console.log(`Forwarded track to peerId: ${pid}, track:`, track);
             });
           }
@@ -592,10 +859,27 @@
 
       pc.onconnectionstatechange = () => {
         console.log(`Peer connection state for peerId: ${peerId}, state: ${pc.connectionState}`);
-        if (pc.connectionState === 'failed') {
-          console.error(`Connection failed with peerId: ${peerId}`);
-          alert(`Connection failed with peerId: ${peerId}. Generating new signaling data to retry.`);
-          renegotiate(peerId);
+        if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected' || pc.connectionState === 'closed') {
+          console.log(`Connection with peerId: ${peerId} failed or closed`);
+          receivedStreams.delete(peerId);
+          upstreamPeerIds.delete(peerId);
+          if (activeStream === receivedStreams.get(peerId)) {
+            activeStream = null;
+            remoteVideo.srcObject = null;
+            remoteVideo.style.display = 'none';
+            volumeControl.style.display = 'none';
+            for (let [pid, stream] of receivedStreams) {
+              if (stream.active) {
+                activeStream = stream;
+                remoteVideo.srcObject = activeStream;
+                remoteVideo.style.display = 'block';
+                volumeControl.style.display = 'block';
+                break;
+              }
+            }
+          }
+          updatePeerCount();
+          connectToAvailablePeers();
         } else if (pc.connectionState === 'connected') {
           console.log(`Connection successfully established with peerId: ${peerId}`);
           updatePeerCount();
@@ -629,8 +913,6 @@
             }
           });
           processQueue(peerId);
-        } else if (pc.connectionState === 'disconnected' || pc.connectionState === 'closed') {
-          updatePeerCount();
         }
       };
 
@@ -659,15 +941,19 @@
         });
       }
 
-      if (isDownstream && receivedStream) {
+      if (isDownstream && receivedStreams.size > 0) {
         console.log(`Forwarding received stream to downstream peerId: ${peerId}`);
-        receivedStream.getTracks().forEach(track => {
-          pc.addTrack(track, receivedStream);
-          console.log(`Forwarded track to peerId: ${peerId}, track:`, track);
-        });
+        const stream = Array.from(receivedStreams.values()).find(s => s.active);
+        if (stream) {
+          stream.getTracks().forEach(track => {
+            pc.addTrack(track, stream);
+            console.log(`Forwarded track to peerId: ${peerId}, track:`, track);
+          });
+        }
       }
 
       peers.set(peerId, { pc, dc, iceCandidates, isDownstream, downstreamPeerCount: 0 });
+      networkMap.set(peerId, { streamId, peerId });
       return pc;
     }
 
@@ -701,6 +987,12 @@
             title: s.title || 'Untitled Stream'
           }));
         });
+        const networkMapMsg = { type: 'networkMap', map: Array.from(networkMap.entries()) };
+        if (dc.readyState === 'open') {
+          dc.send(JSON.stringify(networkMapMsg));
+        } else {
+          queueMessage(peerId, networkMapMsg);
+        }
         processQueue(peerId);
         updatePeerCount();
       };
@@ -725,7 +1017,7 @@
           updateStreamList();
           relayMessage(peerId, msg);
         } else if (msg.type === 'streamTitle') {
-          streamTitleDisplay.textContent = msg.title; // Display only the title
+          streamTitleDisplay.textContent = msg.title;
           if (knownStreams.has(streamId)) {
             knownStreams.get(streamId).title = msg.title;
           }
@@ -742,6 +1034,16 @@
           peers.get(peerId).downstreamPeerCount = msg.count;
           updatePeerCount();
           relayMessage(peerId, msg);
+        } else if (msg.type === 'totalViewers') {
+          relayMessage(peerId, msg);
+        } else if (msg.type === 'networkMap') {
+          console.log(`Received network map from peerId: ${peerId}, map:`, msg.map);
+          msg.map.forEach(([pid, data]) => {
+            if (pid !== peerId && !peers.has(pid)) {
+              networkMap.set(pid, data);
+            }
+          });
+          connectToAvailablePeers();
         } else {
           console.warn(`Unknown message type from peerId: ${peerId}, msg:`, msg);
         }
@@ -781,8 +1083,10 @@
         alert('Please enter your BitStream Name');
         return;
       }
+      alert('Privacy Reminder: Broadcasting will expose your IP address to viewers. Use a VPN for added privacy.');
       streamId = Math.random().toString(36).substring(2, 10);
       streamTitleSection.style.display = 'block';
+      stopStreamBtn.style.display = 'inline-block';
       try {
         selectedCamera = cameraSelect.value;
         selectedAudio = audioSelect.value;
@@ -814,35 +1118,66 @@
     }
 
     function stopStream() {
-      if (localStream) {
-        localStream.getTracks().forEach(track => track.stop());
-        localStream = null;
+      if (isBroadcaster) {
+        if (localStream) {
+          localStream.getTracks().forEach(track => track.stop());
+          localStream = null;
+        }
+        receivedStreams.clear();
+        activeStream = null;
+        peers.forEach(({ pc }) => pc.close());
+        peers.clear();
+        upstreamPeerIds.clear();
+        networkMap.clear();
+        knownStreams.clear();
+        commentQueue.clear();
+        updateStreamList();
+        localVideo.srcObject = null;
+        localVideo.style.display = 'none';
+        remoteVideo.srcObject = null;
+        remoteVideo.style.display = 'none';
+        volumeControl.style.display = 'none';
+        streamTitleDisplay.textContent = '';
+        streamTitleSection.style.display = 'none';
+        signalingDataOutput.value = '';
+        isBroadcaster = false;
+        cameraToggle.style.display = 'block';
+        shareStreamBtn.style.display = 'none';
+        stopStreamBtn.style.display = 'none';
+        streamId = Math.random().toString(36).substring(2, 10);
+        streamTitle = '';
+        peersConnected = 0;
+        viewCount = 0;
+        updatePeerCount();
+      } else {
+        peers.forEach(({ pc }, peerId) => {
+          if (!upstreamPeerIds.has(peerId)) {
+            pc.close();
+          }
+        });
+        upstreamPeerIds.forEach(peerId => {
+          const peer = peers.get(peerId);
+          if (peer) {
+            peer.pc.close();
+          }
+        });
+        peers.clear();
+        upstreamPeerIds.clear();
+        receivedStreams.clear();
+        activeStream = null;
+        networkMap.clear();
+        localVideo.srcObject = null;
+        localVideo.style.display = 'none';
+        remoteVideo.srcObject = null;
+        remoteVideo.style.display = 'none';
+        volumeControl.style.display = 'none';
+        streamTitleDisplay.textContent = '';
+        signalingDataOutput.value = '';
+        cameraToggle.style.display = 'block';
+        shareStreamBtn.style.display = 'none';
+        peersConnected = 0;
+        updatePeerCount();
       }
-      if (receivedStream) {
-        receivedStream = null;
-      }
-      peers.forEach(({ pc }) => pc.close());
-      peers.clear();
-      knownStreams.clear();
-      commentQueue.clear();
-      updateStreamList();
-      localVideo.srcObject = null;
-      localVideo.style.display = 'none';
-      remoteVideo.srcObject = null;
-      remoteVideo.style.display = 'none';
-      volumeControl.style.display = 'none';
-      streamTitleDisplay.textContent = '';
-      streamTitleSection.style.display = 'none';
-      signalingDataOutput.value = '';
-      isBroadcaster = false;
-      cameraToggle.style.display = 'block';
-      shareStreamBtn.style.display = 'none';
-      streamId = Math.random().toString(36).substring(2, 10);
-      streamTitle = '';
-      upstreamPeerId = null;
-      peersConnected = 0;
-      viewCount = 0;
-      updatePeerCount();
     }
 
     async function toggleCamera() {
@@ -859,9 +1194,10 @@
               peer.pc.removeTrack(sender);
               console.log(`Removed track from peerId: ${peerId}`);
             });
-            if (receivedStream) {
-              receivedStream.getTracks().forEach(track => {
-                peer.pc.addTrack(track, receivedStream);
+            const stream = Array.from(receivedStreams.values()).find(s => s.active);
+            if (stream) {
+              stream.getTracks().forEach(track => {
+                peer.pc.addTrack(track, stream);
                 console.log(`Forwarded received track to peerId: ${peerId}, track:`, track);
               });
             }
@@ -947,7 +1283,7 @@
     }
 
     async function shareStream() {
-      if (!receivedStream) {
+      if (receivedStreams.size === 0) {
         alert('No stream available to share. Please connect to a stream first.');
         return;
       }
@@ -994,6 +1330,7 @@
         alert('Please enter your BitStream Name before connecting');
         return;
       }
+      alert('Privacy Reminder: Connecting to a peer will expose your IP address. Use a VPN for added privacy.');
       const data = signalingData.value.trim();
       if (!data) {
         alert('Please paste signaling data to connect to a peer.');
@@ -1023,7 +1360,7 @@
       let pc = peers.get(peerId)?.pc || createPeerConnection(peerId);
 
       if (msg.type === 'offer') {
-        upstreamPeerId = peerId;
+        upstreamPeerIds.add(peerId);
         streamId = msg.streamId;
       }
 
@@ -1074,6 +1411,49 @@
       } catch (err) {
         console.error(`Error during peer connection for peerId: ${peerId}, error:`, err);
         alert(`Failed to connect to peerId: ${peerId}. Check the console for details and try again with new signaling data.`);
+      }
+    }
+
+    async function connectToAvailablePeers() {
+      if (isBroadcaster) return;
+      const availablePeers = Array.from(networkMap.entries()).filter(([pid, _]) => !peers.has(pid));
+      for (let [peerId, data] of availablePeers.slice(0, 2)) {
+        if (upstreamPeerIds.size >= 2) break;
+        console.log(`Attempting to connect to additional peer: ${peerId}`);
+        const pc = createPeerConnection(peerId);
+        try {
+          const offer = await pc.createOffer();
+          await pc.setLocalDescription(offer);
+          await new Promise(resolve => {
+            if (pc.iceGatheringState === 'complete') {
+              resolve();
+            } else {
+              const timeout = setTimeout(() => {
+                console.log(`ICE gathering timeout for peerId: ${peerId}`);
+                resolve();
+              }, 5000);
+              pc.onicegatheringstatechange = () => {
+                if (pc.iceGatheringState === 'complete') {
+                  clearTimeout(timeout);
+                  resolve();
+                }
+              };
+            }
+          });
+          const signalingMsg = JSON.stringify({
+            type: 'offer',
+            offer: pc.localDescription,
+            iceCandidates: peers.get(peerId).iceCandidates,
+            streamId,
+            peerId
+          });
+          console.log(`Generated offer for additional peerId: ${peerId}, data:`, signalingMsg);
+          signalingDataOutput.value = signalingMsg;
+          openSignalingPopup();
+          upstreamPeerIds.add(peerId);
+        } catch (err) {
+          console.error(`Error connecting to additional peerId: ${peerId}, error:`, err);
+        }
       }
     }
 
@@ -1147,7 +1527,7 @@
       streamList.innerHTML = '';
       knownStreams.forEach(s => {
         const li = document.createElement('li');
-        li.textContent = `${s.title} by ${s.bitStreamName}`; // Updated format: [Title] by [Name]
+        li.textContent = `${s.title} by ${s.bitStreamName}`;
         li.onclick = () => watchStream(s.id);
         streamList.appendChild(li);
       });
@@ -1162,15 +1542,39 @@
       return `#${r}${g}${b}`;
     }
 
+    function extractColorFromBackground(background) {
+      const hexMatch = background.match(/#([0-9A-F]{3}|[0-9A-F]{6})\b/i);
+      if (hexMatch) {
+        return hexMatch[0];
+      }
+      const rgbaMatch = background.match(/rgba?\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*(,\s*\d*\.?\d+\s*)?\)/i);
+      if (rgbaMatch) {
+        return rgbaMatch[0];
+      }
+      console.warn(`Could not extract color from background: ${background}`);
+      return background.split(' ')[0];
+    }
+
     function openSettings() {
       settingsPopup.style.display = 'block';
       settingsOverlay.style.display = 'block';
-      const currentBg = document.body.style.background || defaultColors.background;
-      const currentBtn = document.querySelector('button').style.background || defaultColors.button;
-      const currentText = document.body.style.color || defaultColors.text;
-      bgColorInput.value = currentBg.startsWith('rgb') ? rgbToHex(currentBg) : currentBg;
-      btnColorInput.value = currentBtn.startsWith('rgb') ? rgbToHex(currentBtn) : currentBtn;
-      textColorInput.value = currentText.startsWith('rgb') ? rgbToHex(currentText) : currentText;
+
+      const bodyStyle = getComputedStyle(document.body);
+      const button = document.querySelector('button');
+      const buttonStyle = getComputedStyle(button);
+      const commentsStyle = getComputedStyle(document.getElementById('comments'));
+      const streamListStyle = getComputedStyle(document.getElementById('streamList'));
+      const overlayStyle = getComputedStyle(document.getElementById('settingsOverlay'));
+
+      bgColorInput.value = rgbToHex(bodyStyle.backgroundColor);
+      btnColorInput.value = rgbToHex(buttonStyle.backgroundColor);
+      textColorInput.value = rgbToHex(bodyStyle.color);
+      commentsBgInput.value = rgbToHex(commentsStyle.backgroundColor);
+      streamListBgInput.value = rgbToHex(streamListStyle.backgroundColor);
+      const overlayBackground = overlayStyle.background;
+      overlayBgInput.value = extractColorFromBackground(overlayBackground);
+
+      darkModeToggle.checked = isDarkMode;
     }
 
     function closeSettings() {
@@ -1178,58 +1582,166 @@
       settingsOverlay.style.display = 'none';
     }
 
+    function updateColorInputs() {
+      const bodyStyle = getComputedStyle(document.body);
+      const button = document.querySelector('button');
+      const buttonStyle = getComputedStyle(button);
+      const commentsStyle = getComputedStyle(document.getElementById('comments'));
+      const streamListStyle = getComputedStyle(document.getElementById('streamList'));
+      const overlayStyle = getComputedStyle(document.getElementById('settingsOverlay'));
+
+      bgColorInput.value = rgbToHex(bodyStyle.backgroundColor);
+      textColorInput.value = rgbToHex(bodyStyle.color);
+      btnColorInput.value = rgbToHex(buttonStyle.backgroundColor);
+      commentsBgInput.value = rgbToHex(commentsStyle.backgroundColor);
+      streamListBgInput.value = rgbToHex(streamListStyle.backgroundColor);
+      overlayBgInput.value = extractColorFromBackground(overlayStyle.background);
+    }
+
+    function convertToHex(color) {
+      const tempElement = document.createElement('div');
+      tempElement.style.color = color;
+      document.body.appendChild(tempElement);
+      const computedColor = getComputedStyle(tempElement).color;
+      document.body.removeChild(tempElement);
+
+      let match = computedColor.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/);
+      if (match) {
+        const r = parseInt(match[1]).toString(16).padStart(2, '0');
+        const g = parseInt(match[2]).toString(16).padStart(2, '0');
+        const b = parseInt(match[3]).toString(16).padStart(2, '0');
+        return `#${r}${g}${b}`;
+      }
+
+      match = computedColor.match(/^rgba\((\d+),\s*(\d+),\s*(\d+),\s*[\d.]+\)$/);
+      if (match) {
+        const r = parseInt(match[1]).toString(16).padStart(2, '0');
+        const g = parseInt(match[2]).toString(16).padStart(2, '0');
+        const b = parseInt(match[3]).toString(16).padStart(2, '0');
+        return `#${r}${g}${b}`;
+      }
+
+      if (/^#([0-9A-F]{3}){1,2}$/i.test(color)) {
+        return color;
+      }
+
+      console.warn(`Could not convert color to hex: ${color}, computed: ${computedColor}`);
+      return color;
+    }
+
+    function isValidColor(color) {
+      const s = new Option().style;
+      s.color = color;
+      return s.color !== '';
+    }
+
+    function isValidHexColor(color) {
+      return /^#([0-9A-F]{3}){1,2}$/i.test(color);
+    }
+
     function applyColors() {
+      const root = document.documentElement;
       const bgColor = bgColorInput.value.trim();
       const btnColor = btnColorInput.value.trim();
       const textColor = textColorInput.value.trim();
+      const commentsBgColor = commentsBgInput.value.trim();
+      const streamListBgColor = streamListBgInput.value.trim();
+      const overlayBgColor = overlayBgInput.value.trim();
+      let hasError = false;
 
-      if (bgColor) {
-        document.body.style.background = bgColor;
-        document.getElementById('container').style.background = bgColor;
-        document.getElementById('instructions').style.background = bgColor;
-        document.getElementById('signalingPopup').style.background = bgColor;
-        document.getElementById('comments').style.background = bgColor;
-        document.querySelectorAll('#streamList li').forEach(li => {
-          li.style.background = adjustBrightness(bgColor, -10);
-        });
-        document.querySelectorAll('#streamList li:hover').forEach(li => {
-          li.style.background = adjustBrightness(bgColor, -20);
-        });
+      isDarkMode = darkModeToggle.checked;
+      localStorage.setItem('darkMode', isDarkMode);
+
+      if (bgColor && isValidColor(bgColor)) {
+        root.style.setProperty('--background', bgColor);
+        root.style.setProperty('--container-bg', bgColor);
+        root.style.setProperty('--instructions-bg', bgColor);
+        root.style.setProperty('--input-bg', bgColor);
+      } else if (bgColor) {
+        alert('Invalid Background color. Use hex (e.g., #1a1a1a).');
+        hasError = true;
       }
 
-      if (btnColor) {
-        document.querySelectorAll('button').forEach(button => {
-          button.style.background = btnColor;
-          button.style.setProperty('--hover-color', adjustBrightness(btnColor, -20));
-        });
+      if (btnColor && isValidColor(btnColor)) {
+        root.style.setProperty('--button-bg', btnColor);
+        const hexBtnColor = isValidHexColor(btnColor) ? btnColor : convertToHex(btnColor);
+        if (isValidHexColor(hexBtnColor)) {
+          root.style.setProperty('--button-hover', adjustBrightness(hexBtnColor, -20));
+        } else {
+          alert('Button color must be convertible to hex format (e.g., #1e90ff or rgb(30,144,255)) for hover effect.');
+          hasError = true;
+        }
+      } else if (btnColor) {
+        alert('Invalid Button color. Use hex (e.g., #1e90ff).');
+        hasError = true;
       }
 
-      if (textColor) {
-        document.body.style.color = textColor;
+      if (textColor && isValidColor(textColor)) {
+        root.style.setProperty('--text-color', textColor);
+        root.style.setProperty('--input-text', textColor);
+      } else if (textColor) {
+        alert('Invalid Text color. Use hex (e.g., #e0e0e0).');
+        hasError = true;
       }
 
-      closeSettings();
+      if (commentsBgColor && isValidColor(commentsBgColor)) {
+        root.style.setProperty('--comments-bg', commentsBgColor);
+      } else if (commentsBgColor) {
+        alert('Invalid Comments Background color. Use hex (e.g., #222222).');
+        hasError = true;
+      }
+
+      if (streamListBgColor && isValidColor(streamListBgColor)) {
+        root.style.setProperty('--stream-list-bg', streamListBgColor);
+        const hexStreamListColor = isValidHexColor(streamListBgColor) ? streamListBgColor : convertToHex(streamListBgColor);
+        if (isValidHexColor(hexStreamListColor)) {
+          root.style.setProperty('--stream-list-hover', adjustBrightness(hexStreamListColor, -10));
+        } else {
+          console.warn('Stream List Background could not be converted to hex for hover effect. Using default hover behavior.');
+          root.style.setProperty('--stream-list-hover', streamListBgColor);
+        }
+      } else if (streamListBgColor) {
+        alert('Invalid Stream List Background color. Use hex (e.g., #444444).');
+        hasError = true;
+      }
+
+      if (overlayBgColor) {
+        const isRgbaFormat = /^rgba?\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*(,\s*\d*\.?\d+\s*)?\)$/i.test(overlayBgColor);
+        const isHexFormat = isValidHexColor(overlayBgColor);
+        if (isRgbaFormat || isHexFormat) {
+          root.style.setProperty('--overlay-bg', overlayBgColor);
+        } else {
+          alert(`Invalid Overlay Background color: "${overlayBgColor}". Use hex (e.g., #000000) or rgba (e.g., rgba(0,0,0,0.7)).`);
+          hasError = true;
+        }
+      }
+
+      if (!hasError) {
+        applyTheme();
+        closeSettings();
+      }
     }
 
     function resetColors() {
-      document.body.style.background = defaultColors.background;
-      document.getElementById('container').style.background = 'white';
-      document.getElementById('instructions').style.background = '#e9ecef';
-      document.getElementById('signalingPopup').style.background = 'white';
-      document.getElementById('comments').style.background = '#fafafa';
-      document.querySelectorAll('#streamList li').forEach(li => {
-        li.style.background = '#eee';
-      });
-      document.querySelectorAll('#streamList li:hover').forEach(li => {
-        li.style.background = '#ddd';
-      });
+      const root = document.documentElement;
+      root.style.removeProperty('--background');
+      root.style.removeProperty('--container-bg');
+      root.style.removeProperty('--text-color');
+      root.style.removeProperty('--button-bg');
+      root.style.removeProperty('--button-hover');
+      root.style.removeProperty('--instructions-bg');
+      root.style.removeProperty('--comments-bg');
+      root.style.removeProperty('--stream-list-bg');
+      root.style.removeProperty('--stream-list-hover');
+      root.style.removeProperty('--input-bg');
+      root.style.removeProperty('--input-text');
+      root.style.removeProperty('--input-border');
+      root.style.removeProperty('--shadow');
+      root.style.removeProperty('--overlay-bg');
 
-      document.body.style.color = defaultColors.text;
-      document.querySelectorAll('button').forEach(button => {
-        button.style.background = defaultColors.button;
-        button.style.setProperty('--hover-color', defaultColors.buttonHover);
-      });
-
+      isDarkMode = darkModeToggle.checked;
+      localStorage.setItem('darkMode', isDarkMode);
+      applyTheme();
       closeSettings();
     }
 
@@ -1246,8 +1758,11 @@
 
     const styleSheet = document.createElement('style');
     styleSheet.innerHTML = `
+      #streamList li:hover {
+        background: var(--stream-list-hover) !important;
+      }
       button:hover {
-        background: var(--hover-color, ${defaultColors.buttonHover}) !important;
+        background: var(--button-hover) !important;
       }
     `;
     document.head.appendChild(styleSheet);
@@ -1257,11 +1772,24 @@
     });
 
     window.onload = () => {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.RTCPeerConnection) {
+        alert('Your browser does not support the required WebRTC features. Please use a modern browser like Chrome, Firefox, or Edge.');
+        return;
+      }
+
       populateDeviceLists();
       document.querySelectorAll('input, textarea').forEach(element => {
         element.removeAttribute('disabled');
         element.style.pointerEvents = 'auto';
       });
+      applyTheme();
+      showPrivacyPopup();
+    };
+
+    window.onerror = function(msg, url, lineNo, columnNo, error) {
+      console.error('Error:', msg, 'URL:', url, 'Line:', lineNo, 'Column:', columnNo, 'Stack:', error?.stack);
+      alert('An unexpected error occurred. Please check the console for details and try again.');
+      return false;
     };
   </script>
 </body>
