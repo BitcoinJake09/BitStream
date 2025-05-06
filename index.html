@@ -428,13 +428,12 @@
         <strong>Instructions:</strong><br>
         1. Broadcaster: Enter your BitStream Name, then click "Start Stream" to begin broadcasting.<br>
         2. Broadcaster: Set a Stream Title (optional) to let viewers know what your stream is about.<br>
-        3. Broadcaster: Click "Generate Signaling Data", then copy the JSON data from the popup and share it with Viewer A (e.g., via chat).<br>
-        4. Viewer A: Enter your BitStream Name, paste the JSON data below, and click "Connect" to watch the stream.<br>
-        5. Viewer A: Copy the response JSON from the popup and send it back to the broadcaster to complete the connection.<br>
-        6. Viewer A: Click "Share Stream" to generate new signaling data, then share it with Viewer B to relay the stream.<br>
-        7. Viewer B: Repeat steps 4-6 to watch and share the stream with Viewer C, and so on.<br>
-        8. Viewer: Click "Enable 1v1 Chat" to share your video with the upstream peer (optional).<br>
-        9. Double-click the video to toggle fullscreen mode.<br>
+        3. Broadcaster: Click "Generate Signaling Data", then copy the JSON data from the popup and share it with Viewer A (e.g., via chat) if not using automatic discovery.<br>
+        4. Viewer: Enter your BitStream Name, select a stream from Active Streams, or paste JSON data and click "Connect" for manual connection.<br>
+        5. Viewer: The app will automatically request signaling data from peers in the network, or use the manual JSON response to complete the connection.<br>
+        6. Viewer: Click "Share Stream" to relay the stream to others.<br>
+        7. Click "Enable 1v1 Chat" to share your video with the upstream peer (optional).<br>
+        8. Double-click the video to toggle fullscreen mode.<br>
         <strong>Note:</strong> WebRTC requires HTTPS. If testing locally, use Chrome with --allow-file-access-from-files.<br>
         <strong>Privacy Notice:</strong> BitStreams uses P2P technology, meaning your IP address may be visible to other users. We strongly recommend using a VPN to protect your privacy.
       </div>
@@ -553,6 +552,8 @@
     const knownStreams = new Map();
     const commentQueue = new Map();
     const networkMap = new Map();
+    const knownPeers = new Set();
+    let propagationIntervalId = null;
 
     const iceServers = [
       { urls: 'stun:stun.l.google.com:19302' },
@@ -607,14 +608,22 @@
       updateColorInputs();
     });
 
-    setInterval(() => {
-      peers.forEach((peer, peerId) => {
-        if (commentQueue.has(peerId) && peer.pc.connectionState === 'connected' && peer.dc && peer.dc.readyState === 'open') {
-          console.log(`Periodic queue check for peerId: ${peerId}, data channel state: ${peer.dc.readyState}`);
-          processQueue(peerId);
-        }
-      });
-    }, 2000);
+    function updatePropagationInterval() {
+      if (propagationIntervalId) {
+        clearInterval(propagationIntervalId);
+      }
+      const interval = 2000 + (Math.floor(knownPeers.size / 100) * 2000);
+      propagationIntervalId = setInterval(() => {
+        peers.forEach((peer, peerId) => {
+          if (commentQueue.has(peerId) && peer.pc.connectionState === 'connected' && peer.dc && peer.dc.readyState === 'open') {
+            console.log(`Periodic queue check for peerId: ${peerId}, data channel state: ${peer.dc.readyState}`);
+            processQueue(peerId);
+          }
+        });
+        propagateNetworkInfo();
+      }, interval);
+      console.log(`Propagation interval updated to ${interval}ms for ${knownPeers.size} peers`);
+    }
 
     async function populateDeviceLists() {
       try {
@@ -774,6 +783,7 @@
             }
           }
         });
+        viewCount = Math.max(0, viewCount - 1); // Subtract 1 to exclude streamer
         peersConnectedDisplay.textContent = `Viewers: ${viewCount}`;
         const msg = { type: 'totalViewers', count: viewCount };
         peers.forEach((peer, peerId) => {
@@ -863,6 +873,7 @@
           console.log(`Connection with peerId: ${peerId} failed or closed`);
           receivedStreams.delete(peerId);
           upstreamPeerIds.delete(peerId);
+          knownPeers.delete(peerId);
           if (activeStream === receivedStreams.get(peerId)) {
             activeStream = null;
             remoteVideo.srcObject = null;
@@ -879,6 +890,7 @@
             }
           }
           updatePeerCount();
+          updatePropagationInterval();
           connectToAvailablePeers();
         } else if (pc.connectionState === 'connected') {
           console.log(`Connection successfully established with peerId: ${peerId}`);
@@ -913,6 +925,7 @@
             }
           });
           processQueue(peerId);
+          propagateNetworkInfo();
         }
       };
 
@@ -954,6 +967,8 @@
 
       peers.set(peerId, { pc, dc, iceCandidates, isDownstream, downstreamPeerCount: 0 });
       networkMap.set(peerId, { streamId, peerId });
+      knownPeers.add(peerId);
+      updatePropagationInterval();
       return pc;
     }
 
@@ -995,6 +1010,8 @@
         }
         processQueue(peerId);
         updatePeerCount();
+        propagateNetworkInfo();
+        updatePropagationInterval();
       };
       dc.onmessage = (event) => {
         console.log(`Received data channel message from peerId: ${peerId}, event:`, event);
@@ -1012,7 +1029,8 @@
             id: msg.streamId,
             name: msg.name,
             bitStreamName: msg.bitStreamName || 'Anonymous',
-            title: msg.title || 'Untitled Stream'
+            title: msg.title || 'Untitled Stream',
+            peerId: peerId
           });
           updateStreamList();
           relayMessage(peerId, msg);
@@ -1041,9 +1059,17 @@
           msg.map.forEach(([pid, data]) => {
             if (pid !== peerId && !peers.has(pid)) {
               networkMap.set(pid, data);
+              knownPeers.add(pid);
             }
           });
+          updatePropagationInterval();
           connectToAvailablePeers();
+        } else if (msg.type === 'request_offer') {
+          handleOfferRequest(peerId, msg.streamId, msg.requesterId);
+        } else if (msg.type === 'offer') {
+          handleOffer(peerId, msg);
+        } else if (msg.type === 'answer') {
+          handleAnswer(peerId, msg);
         } else {
           console.warn(`Unknown message type from peerId: ${peerId}, msg:`, msg);
         }
@@ -1053,7 +1079,9 @@
       };
       dc.onclose = () => {
         console.log(`Data channel closed for peerId: ${peerId}`);
+        knownPeers.delete(peerId);
         updatePeerCount();
+        updatePropagationInterval();
       };
       dc.onstatechange = () => {
         console.log(`Data channel state changed for peerId: ${peerId}, state: ${dc.readyState}`);
@@ -1099,7 +1127,7 @@
         isBroadcaster = true;
         cameraToggle.style.display = 'block';
         shareStreamBtn.style.display = 'none';
-        knownStreams.set(streamId, { id: streamId, name: bitStreamName, bitStreamName, title: streamTitle || 'Untitled Stream' });
+        knownStreams.set(streamId, { id: streamId, name: bitStreamName, bitStreamName, title: streamTitle || 'Untitled Stream', peerId: streamId });
         updateStreamList();
 
         peers.forEach((peer, peerId) => {
@@ -1130,6 +1158,7 @@
         upstreamPeerIds.clear();
         networkMap.clear();
         knownStreams.clear();
+        knownPeers.clear();
         commentQueue.clear();
         updateStreamList();
         localVideo.srcObject = null;
@@ -1149,6 +1178,7 @@
         peersConnected = 0;
         viewCount = 0;
         updatePeerCount();
+        updatePropagationInterval();
       } else {
         peers.forEach(({ pc }, peerId) => {
           if (!upstreamPeerIds.has(peerId)) {
@@ -1166,6 +1196,7 @@
         receivedStreams.clear();
         activeStream = null;
         networkMap.clear();
+        knownPeers.clear();
         localVideo.srcObject = null;
         localVideo.style.display = 'none';
         remoteVideo.srcObject = null;
@@ -1177,6 +1208,7 @@
         shareStreamBtn.style.display = 'none';
         peersConnected = 0;
         updatePeerCount();
+        updatePropagationInterval();
       }
     }
 
@@ -1271,7 +1303,11 @@
           offer: pc.localDescription,
           iceCandidates: peers.get(peerId).iceCandidates,
           streamId,
-          peerId
+          peerId,
+          networkInfo: {
+            peers: Array.from(knownPeers),
+            streams: Array.from(knownStreams.values())
+          }
         });
         console.log(`Broadcaster generated signaling data for peerId: ${peerId}, data:`, signalingMsg);
         signalingDataOutput.value = signalingMsg;
@@ -1313,7 +1349,11 @@
           offer: pc.localDescription,
           iceCandidates: peers.get(peerId).iceCandidates,
           streamId,
-          peerId
+          peerId,
+          networkInfo: {
+            peers: Array.from(knownPeers),
+            streams: Array.from(knownStreams.values())
+          }
         });
         console.log(`Viewer generated signaling data for downstream peerId: ${peerId}, data:`, signalingMsg);
         signalingDataOutput.value = signalingMsg;
@@ -1396,6 +1436,10 @@
           console.log(`Viewer generated answer for peerId: ${peerId}, answer:`, signalingMsg);
           signalingDataOutput.value = signalingMsg;
           openSignalingPopup();
+          if (msg.networkInfo) {
+            updateNetworkInfo(msg.networkInfo.peers, msg.networkInfo.streams);
+            updatePropagationInterval();
+          }
         } else if (msg.type === 'answer') {
           console.log(`Processing answer from peerId: ${peerId}, answer:`, msg.answer);
           await pc.setRemoteDescription(new RTCSessionDescription(msg.answer));
@@ -1414,10 +1458,193 @@
       }
     }
 
+    function updateNetworkInfo(newPeers, newStreams) {
+      newPeers.forEach(peer => knownPeers.add(peer));
+      newStreams.forEach(stream => {
+        knownStreams.set(stream.id, {
+          id: stream.id,
+          name: stream.name,
+          bitStreamName: stream.bitStreamName || 'Anonymous',
+          title: stream.title || 'Untitled Stream',
+          peerId: stream.peerId
+        });
+      });
+      updateStreamList();
+      updatePropagationInterval();
+    }
+
+    function propagateNetworkInfo() {
+      const msg = {
+        type: 'networkInfo',
+        peers: Array.from(knownPeers),
+        streams: Array.from(knownStreams.values())
+      };
+      peers.forEach((peer, peerId) => {
+        if (peer.pc.connectionState === 'connected' && peer.dc && peer.dc.readyState === 'open') {
+          console.log(`Propagating network info to peerId: ${peerId}, msg:`, msg);
+          peer.dc.send(JSON.stringify(msg));
+        } else {
+          queueMessage(peerId, msg);
+        }
+      });
+    }
+
+    async function handleOfferRequest(peerId, targetStreamId, requesterId) {
+      if (isBroadcaster && targetStreamId === streamId) {
+        const newPeerId = Math.random().toString(36).substring(2, 10);
+        const pc = createPeerConnection(newPeerId);
+        try {
+          const offer = await pc.createOffer();
+          await pc.setLocalDescription(offer);
+          await new Promise(resolve => {
+            if (pc.iceGatheringState === 'complete') {
+              resolve();
+            } else {
+              const timeout = setTimeout(() => {
+                console.log(`ICE gathering timeout for peerId: ${newPeerId}`);
+                resolve();
+              }, 5000);
+              pc.onicegatheringstatechange = () => {
+                if (pc.iceGatheringState === 'complete') {
+                  clearTimeout(timeout);
+                  resolve();
+                }
+              };
+            }
+          });
+          const offerMsg = {
+            type: 'offer',
+            offer: pc.localDescription,
+            iceCandidates: peers.get(newPeerId).iceCandidates,
+            streamId,
+            peerId: newPeerId,
+            requesterId
+          };
+          console.log(`Generated offer for requesterId: ${requesterId}, peerId: ${newPeerId}`);
+          const peer = peers.get(peerId);
+          if (peer && peer.pc.connectionState === 'connected' && peer.dc && peer.dc.readyState === 'open') {
+            peer.dc.send(JSON.stringify(offerMsg));
+          } else {
+            queueMessage(peerId, offerMsg);
+          }
+        } catch (err) {
+          console.error(`Error generating offer for peerId: ${newPeerId}, error:`, err);
+        }
+      } else if (receivedStreams.size > 0) {
+        const newPeerId = Math.random().toString(36).substring(2, 10);
+        const pc = createPeerConnection(newPeerId, true);
+        try {
+          const offer = await pc.createOffer();
+          await pc.setLocalDescription(offer);
+          await new Promise(resolve => {
+            if (pc.iceGatheringState === 'complete') {
+              resolve();
+            } else {
+              const timeout = setTimeout(() => {
+                console.log(`ICE gathering timeout for peerId: ${newPeerId}`);
+                resolve();
+              }, 5000);
+              pc.onicegatheringstatechange = () => {
+                if (pc.iceGatheringState === 'complete') {
+                  clearTimeout(timeout);
+                  resolve();
+                }
+              };
+            }
+          });
+          const offerMsg = {
+            type: 'offer',
+            offer: pc.localDescription,
+            iceCandidates: peers.get(newPeerId).iceCandidates,
+            streamId: targetStreamId,
+            peerId: newPeerId,
+            requesterId
+          };
+          console.log(`Generated relay offer for requesterId: ${requesterId}, peerId: ${newPeerId}`);
+          const peer = peers.get(peerId);
+          if (peer && peer.pc.connectionState === 'connected' && peer.dc && peer.dc.readyState === 'open') {
+            peer.dc.send(JSON.stringify(offerMsg));
+          } else {
+            queueMessage(peerId, offerMsg);
+          }
+        } catch (err) {
+          console.error(`Error generating relay offer for peerId: ${newPeerId}, error:`, err);
+        }
+      }
+    }
+
+    async function handleOffer(peerId, msg) {
+      if (msg.requesterId !== streamId) return;
+      const newPeerId = msg.peerId;
+      const pc = createPeerConnection(newPeerId);
+      try {
+        await pc.setRemoteDescription(new RTCSessionDescription(msg.offer));
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        await new Promise(resolve => {
+          if (pc.iceGatheringState === 'complete') {
+            resolve();
+          } else {
+            const timeout = setTimeout(() => {
+              console.log(`ICE gathering timeout for peerId: ${newPeerId}`);
+              resolve();
+            }, 5000);
+            pc.onicegatheringstatechange = () => {
+              if (pc.iceGatheringState === 'complete') {
+                clearTimeout(timeout);
+                resolve();
+              }
+            };
+          }
+        });
+        const answerMsg = {
+          type: 'answer',
+          answer: pc.localDescription,
+          iceCandidates: peers.get(newPeerId).iceCandidates,
+          streamId: msg.streamId,
+          peerId: newPeerId
+        };
+        console.log(`Generated answer for peerId: ${newPeerId}`);
+        const peer = peers.get(peerId);
+        if (peer && peer.pc.connectionState === 'connected' && peer.dc && peer.dc.readyState === 'open') {
+          peer.dc.send(JSON.stringify(answerMsg));
+        } else {
+          queueMessage(peerId, answerMsg);
+        }
+        if (msg.iceCandidates && msg.iceCandidates.length > 0) {
+          for (const candidate of msg.iceCandidates) {
+            await pc.addIceCandidate(new RTCIceCandidate(candidate));
+            console.log(`Added ICE candidate for peerId: ${newPeerId}, candidate:`, candidate);
+          }
+        }
+        upstreamPeerIds.add(newPeerId);
+        streamId = msg.streamId;
+      } catch (err) {
+        console.error(`Error handling offer for peerId: ${newPeerId}, error:`, err);
+      }
+    }
+
+    async function handleAnswer(peerId, msg) {
+      const targetPeerId = msg.peerId;
+      const peer = peers.get(targetPeerId);
+      if (!peer) return;
+      try {
+        await peer.pc.setRemoteDescription(new RTCSessionDescription(msg.answer));
+        if (msg.iceCandidates && msg.iceCandidates.length > 0) {
+          for (const candidate of msg.iceCandidates) {
+            await peer.pc.addIceCandidate(new RTCIceCandidate(candidate));
+            console.log(`Added ICE candidate for peerId: ${targetPeerId}, candidate:`, candidate);
+          }
+        }
+      } catch (err) {
+        console.error(`Error handling answer for peerId: ${targetPeerId}, error:`, err);
+      }
+    }
+
     async function connectToAvailablePeers() {
       if (isBroadcaster) return;
-      const availablePeers = Array.from(networkMap.entries()).filter(([pid, _]) => !peers.has(pid));
-      for (let [peerId, data] of availablePeers.slice(0, 2)) {
+      const availablePeers = Array.from(knownPeers).filter(pid => !peers.has(pid));
+      for (let peerId of availablePeers.slice(0, 2)) {
         if (upstreamPeerIds.size >= 2) break;
         console.log(`Attempting to connect to additional peer: ${peerId}`);
         const pc = createPeerConnection(peerId);
@@ -1445,11 +1672,16 @@
             offer: pc.localDescription,
             iceCandidates: peers.get(peerId).iceCandidates,
             streamId,
-            peerId
+            peerId,
+            requesterId: streamId
           });
           console.log(`Generated offer for additional peerId: ${peerId}, data:`, signalingMsg);
-          signalingDataOutput.value = signalingMsg;
-          openSignalingPopup();
+          const peer = peers.get(peerId);
+          if (peer && peer.pc.connectionState === 'connected' && peer.dc && peer.dc.readyState === 'open') {
+            peer.dc.send(JSON.stringify(signalingMsg));
+          } else {
+            queueMessage(peerId, signalingMsg);
+          }
           upstreamPeerIds.add(peerId);
         } catch (err) {
           console.error(`Error connecting to additional peerId: ${peerId}, error:`, err);
@@ -1459,40 +1691,31 @@
 
     async function watchStream(targetId) {
       if (targetId === streamId) return;
-      const peerId = Math.random().toString(36).substring(2, 10);
-      const pc = createPeerConnection(peerId);
-      try {
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-        await new Promise(resolve => {
-          if (pc.iceGatheringState === 'complete') {
-            resolve();
-          } else {
-            const timeout = setTimeout(() => {
-              console.log(`ICE gathering timeout for peerId: ${peerId}`);
-              resolve();
-            }, 5000);
-            pc.onicegatheringstatechange = () => {
-              if (pc.iceGatheringState === 'complete') {
-                clearTimeout(timeout);
-                resolve();
-              }
-            };
-          }
-        });
-        const signalingMsg = JSON.stringify({
-          type: 'offer',
-          offer: pc.localDescription,
-          iceCandidates: peers.get(peerId).iceCandidates,
-          streamId,
-          peerId
-        });
-        console.log(`Generated offer for stream targetId: ${targetId}, peerId: ${peerId}, data:`, signalingMsg);
-        signalingDataOutput.value = signalingMsg;
-        openSignalingPopup();
-      } catch (err) {
-        console.error(`Error creating offer for stream targetId: ${targetId}, peerId: ${peerId}, error:`, err);
-        alert('Failed to initiate connection to stream. Check the console for details.');
+      bitStreamName = bitStreamNameInput.value.trim();
+      if (!bitStreamName) {
+        alert('Please enter your BitStream Name before connecting');
+        return;
+      }
+      const stream = knownStreams.get(targetId);
+      if (!stream || !stream.peerId) {
+        alert('No peer available for this stream. Try manual connection.');
+        return;
+      }
+      const peerId = stream.peerId;
+      const requesterId = Math.random().toString(36).substring(2, 10);
+      const msg = {
+        type: 'request_offer',
+        streamId: targetId,
+        requesterId
+      };
+      const peer = peers.get(peerId);
+      if (peer && peer.pc.connectionState === 'connected' && peer.dc && peer.dc.readyState === 'open') {
+        console.log(`Requesting offer for streamId: ${targetId} from peerId: ${peerId}`);
+        peer.dc.send(JSON.stringify(msg));
+      } else {
+        queueMessage(peerId, msg);
+        console.log(`PeerId: ${peerId} not connected, queued offer request`);
+        alert('Peer not connected. Request queued. Try manual connection if it fails.');
       }
     }
 
@@ -1687,7 +1910,7 @@
       if (commentsBgColor && isValidColor(commentsBgColor)) {
         root.style.setProperty('--comments-bg', commentsBgColor);
       } else if (commentsBgColor) {
-        alert('Invalid Comments Background color. Use hex (e.g., #222222).');
+        alert('Invalid Comments Background color. Use hex (e.g., #222).');
         hasError = true;
       }
 
@@ -1695,102 +1918,58 @@
         root.style.setProperty('--stream-list-bg', streamListBgColor);
         const hexStreamListColor = isValidHexColor(streamListBgColor) ? streamListBgColor : convertToHex(streamListBgColor);
         if (isValidHexColor(hexStreamListColor)) {
-          root.style.setProperty('--stream-list-hover', adjustBrightness(hexStreamListColor, -10));
+          root.style.setProperty('--stream-list-hover', adjustBrightness(hexStreamListColor, 10));
         } else {
-          console.warn('Stream List Background could not be converted to hex for hover effect. Using default hover behavior.');
-          root.style.setProperty('--stream-list-hover', streamListBgColor);
+          alert('Stream List Background color must be convertible to hex format (e.g., #444) for hover effect.');
+          hasError = true;
         }
       } else if (streamListBgColor) {
-        alert('Invalid Stream List Background color. Use hex (e.g., #444444).');
+        alert('Invalid Stream List Background color. Use  Use hex (e.g., #444).');
         hasError = true;
       }
 
-      if (overlayBgColor) {
-        const isRgbaFormat = /^rgba?\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*(,\s*\d*\.?\d+\s*)?\)$/i.test(overlayBgColor);
-        const isHexFormat = isValidHexColor(overlayBgColor);
-        if (isRgbaFormat || isHexFormat) {
-          root.style.setProperty('--overlay-bg', overlayBgColor);
-        } else {
-          alert(`Invalid Overlay Background color: "${overlayBgColor}". Use hex (e.g., #000000) or rgba (e.g., rgba(0,0,0,0.7)).`);
-          hasError = true;
-        }
+      if (overlayBgColor && (isValidColor(overlayBgColor) || /^rgba?\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*(,\s*\d*\.?\d+\s*)?\)$/i.test(overlayBgColor))) {
+        root.style.setProperty('--overlay-bg', overlayBgColor);
+      } else if (overlayBgColor) {
+        alert('Invalid Overlay Background color. Use rgba (e.g., rgba(0,0,0,0.7)) or hex.');
+        hasError = true;
       }
 
       if (!hasError) {
-        applyTheme();
-        closeSettings();
+        alert('Colors applied successfully!');
       }
+    }
+
+    function adjustBrightness(hex, percent) {
+      hex = hex.replace(/^#/, '');
+      if (hex.length === 3) {
+        hex = hex.replace(/(.)/g, '$1$1');
+      }
+      let r = parseInt(hex.substring(0, 2), 16);
+      let g = parseInt(hex.substring(2, 4), 16);
+      let b = parseInt(hex.substring(4, 6), 16);
+
+      r = Math.min(255, Math.max(0, Math.round(r + (r * percent / 100))));
+      g = Math.min(255, Math.max(0, Math.round(g + (g * percent / 100))));
+      b = Math.min(255, Math.max(0, Math.round(b + (b * percent / 100))));
+
+      return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
     }
 
     function resetColors() {
       const root = document.documentElement;
-      root.style.removeProperty('--background');
-      root.style.removeProperty('--container-bg');
-      root.style.removeProperty('--text-color');
-      root.style.removeProperty('--button-bg');
-      root.style.removeProperty('--button-hover');
-      root.style.removeProperty('--instructions-bg');
-      root.style.removeProperty('--comments-bg');
-      root.style.removeProperty('--stream-list-bg');
-      root.style.removeProperty('--stream-list-hover');
-      root.style.removeProperty('--input-bg');
-      root.style.removeProperty('--input-text');
-      root.style.removeProperty('--input-border');
-      root.style.removeProperty('--shadow');
-      root.style.removeProperty('--overlay-bg');
-
-      isDarkMode = darkModeToggle.checked;
-      localStorage.setItem('darkMode', isDarkMode);
       applyTheme();
-      closeSettings();
+      updateColorInputs();
+      alert('Colors reset to default.');
     }
 
-    function adjustBrightness(hex, percent) {
-      hex = hex.replace('#', '');
-      const r = parseInt(hex.substr(0, 2), 16);
-      const g = parseInt(hex.substr(2, 2), 16);
-      const b = parseInt(hex.substr(4, 2), 16);
-      const adjustedR = Math.max(0, Math.min(255, r + (r * percent / 100)));
-      const adjustedG = Math.max(0, Math.min(255, g + (g * percent / 100)));
-      const adjustedB = Math.max(0, Math.min(255, b + (b * percent / 100)));
-      return `#${Math.round(adjustedR).toString(16).padStart(2, '0')}${Math.round(adjustedG).toString(16).padStart(2, '0')}${Math.round(adjustedB).toString(16).padStart(2, '0')}`;
-    }
-
-    const styleSheet = document.createElement('style');
-    styleSheet.innerHTML = `
-      #streamList li:hover {
-        background: var(--stream-list-hover) !important;
-      }
-      button:hover {
-        background: var(--button-hover) !important;
-      }
-    `;
-    document.head.appendChild(styleSheet);
-
-    commentInput.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') sendComment();
+    document.addEventListener('DOMContentLoaded', async () => {
+      applyTheme();
+      await populateDeviceLists();
+      showPrivacyPopup();
+      updatePropagationInterval();
     });
 
-    window.onload = () => {
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.RTCPeerConnection) {
-        alert('Your browser does not support the required WebRTC features. Please use a modern browser like Chrome, Firefox, or Edge.');
-        return;
-      }
-
-      populateDeviceLists();
-      document.querySelectorAll('input, textarea').forEach(element => {
-        element.removeAttribute('disabled');
-        element.style.pointerEvents = 'auto';
-      });
-      applyTheme();
-      showPrivacyPopup();
-    };
-
-    window.onerror = function(msg, url, lineNo, columnNo, error) {
-      console.error('Error:', msg, 'URL:', url, 'Line:', lineNo, 'Column:', columnNo, 'Stack:', error?.stack);
-      alert('An unexpected error occurred. Please check the console for details and try again.');
-      return false;
-    };
   </script>
 </body>
 </html>
